@@ -22,6 +22,9 @@ struct MPTappApp: App {
                     // Запускаем автоматическую проверку каждые 5 минут
                     contentService.startAutoUpdate()
                 }
+                .onDisappear {
+                    contentService.stopAutoUpdate()
+                }
         }
     }
 }

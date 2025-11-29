@@ -4,7 +4,8 @@ import SwiftUI
 // MARK: - Content Update Service
 /// Сервис для обновления контента (рекламы, новостей) с сервера
 
-class ContentUpdateService: ObservableObject {
+@MainActor
+final class ContentUpdateService: ObservableObject {
     static let shared = ContentUpdateService()
     
     @Published var advertisements: [Advertisement] = []
@@ -177,25 +178,31 @@ class ContentUpdateService: ObservableObject {
     }
     
     /// Автоматическая проверка обновлений (вызывается периодически)
-    @MainActor
     func startAutoUpdate() {
         updateTimer?.invalidate()
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.checkAndUpdateIfNeeded()
-            }
-        }
+        updateTimer = Timer.scheduledTimer(timeInterval: 300, target: self, selector: #selector(handleUpdateTimer), userInfo: nil, repeats: true)
         if let timer = updateTimer {
             RunLoop.main.add(timer, forMode: .common)
         }
         
-        Task { @MainActor [weak self] in
-            await self?.checkAndUpdateIfNeeded()
+        Task {
+            await checkAndUpdateIfNeeded()
+        }
+    }
+    
+    /// Остановка таймера (если понадобится)
+    func stopAutoUpdate() {
+        updateTimer?.invalidate()
+        updateTimer = nil
+    }
+    
+    @objc private func handleUpdateTimer() {
+        Task {
+            await checkAndUpdateIfNeeded()
         }
     }
     
     /// Проверить и обновить если нужно
-    @MainActor
     func checkAndUpdateIfNeeded() async {
         let needsUpdate = await checkForUpdates()
         if needsUpdate {
@@ -245,3 +252,4 @@ class ContentUpdateService: ObservableObject {
         }
     }
 }
+

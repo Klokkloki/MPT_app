@@ -614,6 +614,24 @@ private struct NewsCard: View {
                     .frame(maxWidth: .infinity)
                     .clipped()
             }
+            // 2b. Пробуем загрузить из Bundle/news (с расширением .webp)
+            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "webp", inDirectory: "news"),
+                     let image = UIImage(contentsOfFile: imagePath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            }
+            // 2c. Пробуем загрузить из Bundle/news (с расширением .png)
+            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "png", inDirectory: "news"),
+                     let image = UIImage(contentsOfFile: imagePath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            }
             // 3. Пробуем загрузить из Bundle/news (без расширения, но с полным именем)
             else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: nil, inDirectory: "news"),
                      let image = UIImage(contentsOfFile: imagePath) {
@@ -623,8 +641,26 @@ private struct NewsCard: View {
                     .frame(maxWidth: .infinity)
                     .clipped()
             }
-            // 4. Пробуем загрузить напрямую из Bundle (без папки news)
+            // 4. Пробуем загрузить напрямую из Bundle (без папки news) - .jpg
             else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "jpg"),
+                     let image = UIImage(contentsOfFile: imagePath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            }
+            // 4b. Пробуем загрузить напрямую из Bundle (без папки news) - .webp
+            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "webp"),
+                     let image = UIImage(contentsOfFile: imagePath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            }
+            // 4c. Пробуем загрузить напрямую из Bundle (без папки news) - .png
+            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "png"),
                      let image = UIImage(contentsOfFile: imagePath) {
                 Image(uiImage: image)
                     .resizable()
