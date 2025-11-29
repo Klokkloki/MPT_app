@@ -1642,7 +1642,7 @@ private struct WeekDaySection: View {
                     .font(appSettings.scaledFont(.subheadline).weight(.semibold))
                     .foregroundColor(.white)
                 
-                if let note = dayNotes[day.date] {
+                if dayNotes[day.date] != nil {
                     Image(systemName: "note.text")
                         .font(appSettings.scaledFont(.caption2))
                         .foregroundColor(.white.opacity(0.5))

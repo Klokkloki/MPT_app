@@ -36,8 +36,10 @@ struct NewsView: View {
             .onAppear {
                 // Загружаем всех преподавателей из статического списка
                 ratingService.loadAllTeachers()
-                // Обновляем контент (реклама, новости)
-                contentService.updateContent()
+                // Быстрая проверка и обновление контента при открытии
+                Task {
+                    await contentService.checkAndUpdateIfNeeded()
+                }
             }
         }
     }

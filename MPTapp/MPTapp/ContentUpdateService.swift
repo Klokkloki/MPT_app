@@ -19,6 +19,8 @@ class ContentUpdateService: ObservableObject {
     private let adsKey = "cached_advertisements"
     private let newsKey = "cached_news_items"
     private let updateTimeKey = "last_content_update"
+    private var updateTimer: Timer?
+    private var pendingServerVersion: String?
     
     private init() {
         loadCachedContent()
@@ -46,36 +48,50 @@ class ContentUpdateService: ObservableObject {
     private func fetchContentFromServer(force: Bool = false) async {
         isLoading = true
         
+        let needsUpdate = force ? true : await checkForUpdates()
+        
+        guard needsUpdate else {
+            isLoading = false
+            return
+        }
+        
         do {
-            // Проверяем, нужно ли обновлять (если последнее обновление было менее часа назад)
-            if !force, let lastUpdate = lastUpdateTime,
-               Date().timeIntervalSince(lastUpdate) < 3600 { // 1 час
-                isLoading = false
-                return
-            }
+            let ads = try await fetchAdvertisements()
+            advertisements = ads
+            saveAdvertisements(ads)
             
-            // Загружаем рекламу
-            if let ads = try? await fetchAdvertisements() {
-                advertisements = ads
-                saveAdvertisements(ads)
-            }
+            let news = try await fetchNews()
+            newsItems = news
+            saveNews(news)
             
-            // Загружаем новости
-            if let news = try? await fetchNews() {
-                newsItems = news
-                saveNews(news)
+            let version: String
+            if let pending = pendingServerVersion {
+                version = pending
+                pendingServerVersion = nil
+            } else {
+                version = try await fetchContentVersion()
             }
+            storage.set(version, forKey: "content_version")
             
             lastUpdateTime = Date()
-            storage.set(Date(), forKey: updateTimeKey)
+            storage.set(lastUpdateTime, forKey: updateTimeKey)
             
         } catch {
             print("Ошибка обновления контента: \(error)")
-            // При ошибке используем кеш
             loadCachedContent()
         }
         
         isLoading = false
+    }
+    
+    /// Быстрая проверка версии (без загрузки всего контента)
+    @MainActor
+    private func fetchContentVersion() async throws -> String {
+        let baseURL = await NetworkService.shared.baseURL
+        let url = URL(string: "\(baseURL)/api/content/version")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let response = try JSONDecoder().decode([String: String].self, from: data)
+        return response["version"] ?? "1.0"
     }
     
     // MARK: - API Calls
@@ -132,21 +148,58 @@ class ContentUpdateService: ObservableObject {
         let description: String?
     }
     
-    /// Проверить версию контента на сервере  
+    /// Проверить версию контента на сервере (быстрая проверка)
     func checkForUpdates() async -> Bool {
         do {
             let baseURL = await NetworkService.shared.baseURL
             let url = URL(string: "\(baseURL)/api/content/version")!
-            let (data, _) = try await URLSession.shared.data(from: url)
+            
+            // Быстрый запрос с таймаутом 3 секунды
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 3.0
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            
+            let (data, _) = try await URLSession.shared.data(for: request)
             let response = try JSONDecoder().decode([String: String].self, from: data)
             
-            let serverVersion = response["version"] ?? "1"
+            let serverVersion = response["version"] ?? "1.0"
             let localVersion = storage.string(forKey: "content_version") ?? "0"
             
-            return serverVersion != localVersion
+            let hasUpdate = serverVersion != localVersion
+            if hasUpdate {
+                pendingServerVersion = serverVersion
+            }
+            return hasUpdate
         } catch {
             print("Ошибка проверки обновлений: \(error)")
             return false
+        }
+    }
+    
+    /// Автоматическая проверка обновлений (вызывается периодически)
+    @MainActor
+    func startAutoUpdate() {
+        updateTimer?.invalidate()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.checkAndUpdateIfNeeded()
+            }
+        }
+        if let timer = updateTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+        
+        Task { @MainActor [weak self] in
+            await self?.checkAndUpdateIfNeeded()
+        }
+    }
+    
+    /// Проверить и обновить если нужно
+    @MainActor
+    func checkAndUpdateIfNeeded() async {
+        let needsUpdate = await checkForUpdates()
+        if needsUpdate {
+            await fetchContentFromServer(force: false)
         }
     }
     
