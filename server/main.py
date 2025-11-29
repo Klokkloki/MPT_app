@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "1.1"
+CONTENT_VERSION = "1.2"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -390,7 +390,7 @@ async def get_content_news():
         },
         {
             "id": "2", 
-            "imageName": "head",
+            "imageName": "news_1",
             "title": "Новости колледжа",
             "description": "Следите за событиями"
         },
