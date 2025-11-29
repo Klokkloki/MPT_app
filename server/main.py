@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "1.5"
+CONTENT_VERSION = "1.51"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -396,7 +396,7 @@ async def get_content_news():
         },
         {
             "id": "3",
-            "imageName": "news_3",
+            "imageName": "prow",
             "title": "Робототехника",
             "description": "Студенты МПТ на всероссийском турнире" 
         }
