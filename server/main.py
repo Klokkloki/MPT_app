@@ -327,7 +327,7 @@ async def get_content_advertisements():
     advertisements = [
         {
             "id": "1",
-            "title": "Skillbox — IT курсы",
+            "title": "Skillbox — Говно",
             "description": "Получи востребованную профессию в IT. Скидка для студентов 20%",
             "imageName": "skillbox_logo",
             "url": "https://skillbox.ru",
@@ -335,7 +335,7 @@ async def get_content_advertisements():
         },
         {
             "id": "2", 
-            "title": "GeekBrains — Программирование",
+            "title": "GeekBrains — Помойка",
             "description": "Изучай Python, Java, JavaScript с нуля. Практика + трудоустройство",
             "imageName": "geekbrains_logo",
             "url": "https://gb.ru",
@@ -343,7 +343,7 @@ async def get_content_advertisements():
         },
         {
             "id": "3",
-            "title": "Яндекс.Практикум", 
+            "title": "Яндекс.Практикум — Помойка", 
             "description": "Онлайн-курсы по Data Science, дизайну, маркетингу. Бесплатная часть",
             "imageName": "yandex_praktikum_logo",
             "url": "https://practicum.yandex.ru",
@@ -396,7 +396,7 @@ async def get_content_news():
         },
         {
             "id": "3",
-            "imageName": "prow",
+            "imageName": "news_4",
             "title": "Робототехника",
             "description": "Студенты МПТ на всероссийском турнире" 
         }
