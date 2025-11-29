@@ -390,7 +390,7 @@ async def get_content_news():
         },
         {
             "id": "2", 
-            "imageName": "news_1",
+            "imageName": "news_1",  # Имя файла БЕЗ расширения (файл должен быть в папке news/ проекта)
             "title": "Новости колледжа",
             "description": "Следите за событиями"
         },
