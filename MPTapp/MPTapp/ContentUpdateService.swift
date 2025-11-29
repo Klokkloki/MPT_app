@@ -66,12 +66,6 @@ class ContentUpdateService: ObservableObject {
                 saveNews(news)
             }
             
-            // Получаем и сохраняем версию контента
-            if let versionResponse = try? await fetchContentVersion() {
-                storage.set(versionResponse.version, forKey: "content_version")
-                storage.set(versionResponse.timestamp, forKey: "content_timestamp")
-            }
-            
             lastUpdateTime = Date()
             storage.set(Date(), forKey: updateTimeKey)
             
@@ -138,7 +132,7 @@ class ContentUpdateService: ObservableObject {
         let description: String?
     }
     
-    /// Проверить версию контента на сервере
+    /// Проверить версию контента на сервере  
     func checkForUpdates() async -> Bool {
         do {
             let baseURL = await NetworkService.shared.baseURL
@@ -154,18 +148,6 @@ class ContentUpdateService: ObservableObject {
             print("Ошибка проверки обновлений: \(error)")
             return false
         }
-    }
-    
-    private func fetchContentVersion() async throws -> ContentVersion {
-        let baseURL = await NetworkService.shared.baseURL
-        let url = URL(string: "\(baseURL)/api/content/version")!
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode(ContentVersion.self, from: data)
-    }
-    
-    private struct ContentVersion: Codable {
-        let version: String
-        let timestamp: String?
     }
     
     // MARK: - Local Storage
