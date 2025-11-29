@@ -87,7 +87,8 @@ class ContentUpdateService: ObservableObject {
     // MARK: - API Calls
     
     private func fetchAdvertisements() async throws -> [Advertisement] {
-        let url = URL(string: "\(NetworkService.shared.baseURL)/api/content/advertisements")!
+        let baseURL = await NetworkService.shared.baseURL
+        let url = URL(string: "\(baseURL)/api/content/advertisements")!
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode([String: [AdvertisementAPI]].self, from: data)
         
@@ -104,7 +105,8 @@ class ContentUpdateService: ObservableObject {
     }
     
     private func fetchNews() async throws -> [NewsItem] {
-        let url = URL(string: "\(NetworkService.shared.baseURL)/api/content/news")!
+        let baseURL = await NetworkService.shared.baseURL
+        let url = URL(string: "\(baseURL)/api/content/news")!
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode([String: [NewsItemAPI]].self, from: data)
         
@@ -139,7 +141,8 @@ class ContentUpdateService: ObservableObject {
     /// Проверить версию контента на сервере
     func checkForUpdates() async -> Bool {
         do {
-            let url = URL(string: "\(NetworkService.shared.baseURL)/api/content/version")!
+            let baseURL = await NetworkService.shared.baseURL
+            let url = URL(string: "\(baseURL)/api/content/version")!
             let (data, _) = try await URLSession.shared.data(from: url)
             let response = try JSONDecoder().decode([String: String].self, from: data)
             
@@ -154,7 +157,8 @@ class ContentUpdateService: ObservableObject {
     }
     
     private func fetchContentVersion() async throws -> ContentVersion {
-        let url = URL(string: "\(NetworkService.shared.baseURL)/api/content/version")!
+        let baseURL = await NetworkService.shared.baseURL
+        let url = URL(string: "\(baseURL)/api/content/version")!
         let (data, _) = try await URLSession.shared.data(from: url)
         return try JSONDecoder().decode(ContentVersion.self, from: data)
     }
