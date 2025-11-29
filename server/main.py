@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "1.2"
+CONTENT_VERSION = "1.5"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -384,7 +384,7 @@ async def get_content_news():
     news = [
         {
             "id": "1",
-            "imageName": "00.10.2024",
+            "imageName": "news_0",
             "title": "Экскурсия",
             "description": "Студенты МПТ на экскурсии"
         },
@@ -396,7 +396,7 @@ async def get_content_news():
         },
         {
             "id": "3",
-            "imageName": "prevyu-studenty-mpt-na-obshherossijskom-turnire-po-robototehnike-24-26.09.2025",
+            "imageName": "news_3",
             "title": "Робототехника",
             "description": "Студенты МПТ на всероссийском турнире" 
         }
