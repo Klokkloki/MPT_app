@@ -13,6 +13,8 @@ from parser import (
     parse_groups_for_specialty, parse_schedule_for_group,
     get_all_groups_from_soup, fetch_replacements, get_replacements_for_group
 )
+from admin_api import admin_router
+from database import db
 
 
 app = FastAPI(
@@ -20,6 +22,9 @@ app = FastAPI(
     description="API для получения расписания Московского приборостроительного техникума",
     version="1.0.0"
 )
+
+# Подключаем админ роутер
+app.include_router(admin_router)
 
 # CORS для iOS приложения
 app.add_middleware(
@@ -70,7 +75,13 @@ async def root():
             "specialties": "/api/specialties",
             "groups": "/api/groups?specialty_id=<tab_id>",
             "schedule": "/api/schedule?group=<group_name>&specialty_id=<tab_id>",
-            "all_groups": "/api/all-groups"
+            "all_groups": "/api/all-groups",
+            "content": {
+                "advertisements": "/api/content/advertisements",
+                "news": "/api/content/news",
+                "app_info": "/api/content/app-info"
+            },
+            "admin": "/admin"
         }
     }
 
@@ -296,6 +307,84 @@ async def get_all_teachers():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Ошибка получения преподавателей: {str(e)}")
+
+
+# MARK: - Content API (Динамический контент для мобильного приложения)
+
+@app.get("/api/content/advertisements")
+async def get_content_advertisements():
+    """Получить активные рекламы для мобильного приложения"""
+    try:
+        ads = db.get_advertisements(active_only=True)
+        
+        # Конвертируем в формат для мобильного приложения
+        mobile_ads = []
+        for ad in ads:
+            mobile_ads.append({
+                "id": str(ad["id"]),
+                "title": ad["title"],
+                "description": ad["description"],
+                "imageName": ad["image_url"] if ad["image_url"] else None,
+                "url": ad["link_url"],
+                "category": ad["category"]
+            })
+        
+        return {"advertisements": mobile_ads}
+    except Exception as e:
+        print(f"Ошибка получения рекламы: {e}")
+        # Возвращаем fallback данные при ошибке
+        return {"advertisements": []}
+
+@app.get("/api/content/news")
+async def get_content_news():
+    """Получить активные новости для мобильного приложения"""
+    try:
+        news = db.get_news(active_only=True)
+        
+        # Конвертируем в формат для мобильного приложения
+        mobile_news = []
+        for item in news:
+            mobile_news.append({
+                "id": str(item["id"]),
+                "imageName": item["image_url"],
+                "title": item["title"],
+                "description": item["description"]
+            })
+        
+        return {"news": mobile_news}
+    except Exception as e:
+        print(f"Ошибка получения новостей: {e}")
+        # Возвращаем fallback данные при ошибке
+        return {"news": []}
+
+@app.get("/api/content/app-info")
+async def get_app_info():
+    """Получить информацию о версии контента и настройках приложения"""
+    try:
+        return {
+            "content_version": db.get_setting("content_version"),
+            "app_version": db.get_setting("app_version"),
+            "maintenance_mode": db.get_setting("maintenance_mode") == "true",
+            "ad_duration": int(db.get_setting("featured_ad_duration") or "5"),
+            "last_update": db.get_setting("last_content_update")
+        }
+    except Exception as e:
+        print(f"Ошибка получения информации о приложении: {e}")
+        return {
+            "content_version": "1",
+            "app_version": "1.0.0",
+            "maintenance_mode": False,
+            "ad_duration": 5,
+            "last_update": None
+        }
+
+@app.get("/api/content/version")
+async def get_content_version():
+    """Быстрая проверка версии контента (для оптимизации)"""
+    return {
+        "version": db.get_setting("content_version"),
+        "timestamp": db.get_setting("last_content_update")
+    }
 
 
 if __name__ == "__main__":
