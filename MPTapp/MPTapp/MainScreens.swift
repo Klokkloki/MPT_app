@@ -17,6 +17,7 @@ struct TodayView: View {
     @State private var selectedLessonForHomework: Lesson?
     @State private var selectedLessonType: LessonType = .numerator
     @State private var currentBannerIndex: Int = 0
+    @State private var selectedDayOffset: Int = 0  // 0 = сегодня, 1 = завтра, 2 = послезавтра
     
     // Рекламные баннеры (загружаются из папки news)
     private let banners: [NewsItem] = [
@@ -24,13 +25,25 @@ struct TodayView: View {
         // Добавьте больше баннеров здесь, просто добавьте новые NewsItem
     ]
     
-    // Локация на сегодня берётся из расписания (первая пара определяет локацию дня)
-    private var todayCampus: String? {
-        schedule.lessons.first?.campus
+    // Даты для свайпа (сегодня, завтра, послезавтра)
+    private var availableDays: [Date] {
+        let calendar = Calendar.current
+        return (0...2).compactMap { calendar.date(byAdding: .day, value: $0, to: Date()) }
+    }
+    
+    // Локация для выбранного дня
+    private var selectedDayCampus: String? {
+        let daySchedule = getScheduleForOffset(selectedDayOffset)
+        return daySchedule.lessons.first?.campus
+    }
+    
+    // Тип недели определяется автоматически
+    private var currentWeekType: WeekType {
+        appSettings.currentWeekType
     }
     
     private var weekTypeText: String {
-        viewModel.weekInfo?.weekTypeRu ?? "Числитель"
+        currentWeekType.displayName
     }
 
     var body: some View {
@@ -41,87 +54,19 @@ struct TodayView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         headerCard
-
-                        // Заголовок с локацией
-                        HStack {
-                            Text("Расписание")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                            
-                            if let campus = todayCampus {
-                                CampusBadge(campus: campus)
+                        
+                        // Индикаторы дней (сегодня, завтра, послезавтра)
+                        daySelector
+                        
+                        // Свайпаемый контент дней
+                        TabView(selection: $selectedDayOffset) {
+                            ForEach(0..<3, id: \.self) { offset in
+                                dayContent(for: offset)
+                                    .tag(offset)
                             }
                         }
-                        .padding(.horizontal, 4)
-
-                        // Пары в стеклянном контейнере
-                        if schedule.lessons.isEmpty {
-                            Text("На сегодня пар нет")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.5))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 24)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(.ultraThinMaterial.opacity(0.3))
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .fill(Color.white.opacity(0.03))
-                                        )
-                                )
-                        } else {
-                            VStack(spacing: 0) {
-                                ForEach(Array(schedule.lessons.enumerated()), id: \.element.id) { index, lesson in
-                                    LessonCard(
-                                        lesson: lesson,
-                                        homework: homeworks[lesson.id],
-                                        homeworkDenominator: lesson.hasDenominator ? homeworks[lesson.denominatorId] : nil,
-                                        note: nil,
-                                        showLocation: false,
-                                        weekType: viewModel.weekInfo?.weekType ?? .numerator,
-                                        onTapNumerator: { 
-                                            selectedLessonForHomework = lesson
-                                            selectedLessonType = .numerator
-                                        },
-                                        onTapDenominator: lesson.hasDenominator ? {
-                                            selectedLessonForHomework = lesson
-                                            selectedLessonType = .denominator
-                                        } : nil,
-                                        onToggleComplete: { hw in
-                                            homeworks[hw.lessonId] = hw
-                                            onHomeworksChanged?()
-                                        },
-                                        onDelete: { hw in
-                                            homeworks.removeValue(forKey: hw.lessonId)
-                                            onHomeworksChanged?()
-                                        }
-                                    )
-                                    
-                                    // Перемена как разделитель
-                                    if index < schedule.lessons.count - 1,
-                                       let breakData = breakInfo(afterLesson: lesson.number) {
-                                        BreakDivider(
-                                            duration: breakData.duration,
-                                            startTime: breakData.start,
-                                            endTime: breakData.end
-                                        )
-                                    }
-                                }
-                            }
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(.ultraThinMaterial.opacity(0.3))
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .fill(Color.white.opacity(0.03))
-                                    )
-                            )
-                        }
-
-                        replacementsSection
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .frame(minHeight: 400)
                         
                         // Рекламные баннеры (внизу, ненавязчиво)
                         bannerSection
@@ -144,6 +89,12 @@ struct TodayView: View {
                     }
                 }
             }
+            .onAppear {
+                // Периодически обновляем замены
+                Task {
+                    await viewModel.loadReplacements(for: group)
+                }
+            }
         }
         .sheet(item: $selectedLessonForHomework) { lesson in
             let lessonId = selectedLessonType == .denominator ? lesson.denominatorId : lesson.id
@@ -164,14 +115,242 @@ struct TodayView: View {
         }
     }
 
+    // MARK: - Day Selector (Выбор дня)
+    
+    private var daySelector: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { offset in
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedDayOffset = offset
+                    }
+                }) {
+                    VStack(spacing: 4) {
+                        Text(dayName(for: offset))
+                            .font(.caption.weight(selectedDayOffset == offset ? .semibold : .medium))
+                        
+                        Text(dayDate(for: offset))
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    .foregroundColor(selectedDayOffset == offset ? .white : .white.opacity(0.5))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(selectedDayOffset == offset ? appSettings.currentWeekColor.opacity(0.3) : Color.white.opacity(0.05))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+    
+    private func dayName(for offset: Int) -> String {
+        switch offset {
+        case 0: return "Сегодня"
+        case 1: return "Завтра"
+        case 2: return "Послезавтра"
+        default: return ""
+        }
+    }
+    
+    private func dayDate(for offset: Int) -> String {
+        let calendar = Calendar.current
+        guard let date = calendar.date(byAdding: .day, value: offset, to: Date()) else { return "" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "d MMM"
+        return formatter.string(from: date)
+    }
+    
+    // MARK: - Day Content (Контент дня)
+    
+    @ViewBuilder
+    private func dayContent(for offset: Int) -> some View {
+        let daySchedule = getScheduleForOffset(offset)
+        let dayReplacements = getReplacementsForOffset(offset)
+        
+        VStack(spacing: 16) {
+            // Заголовок с локацией
+            HStack {
+                Text("Расписание")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                if let campus = daySchedule.lessons.first?.campus {
+                    CampusBadge(campus: campus)
+                }
+            }
+            .padding(.horizontal, 4)
+
+            // Пары
+            if daySchedule.isDayOff || daySchedule.lessons.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.yellow.opacity(0.6))
+                    
+                    Text(daySchedule.isDayOff ? "Выходной" : "Пар нет")
+                        .font(.title3.weight(.medium))
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    Text("Отдыхайте!")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial.opacity(0.3))
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color.white.opacity(0.03))
+                        )
+                )
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(daySchedule.lessons.enumerated()), id: \.element.id) { index, lesson in
+                        LessonCard(
+                            lesson: lesson,
+                            homework: homeworks[lesson.id],
+                            homeworkDenominator: lesson.hasDenominator ? homeworks[lesson.denominatorId] : nil,
+                            note: nil,
+                            showLocation: false,
+                            weekType: currentWeekType,
+                            onTapNumerator: { 
+                                selectedLessonForHomework = lesson
+                                selectedLessonType = .numerator
+                            },
+                            onTapDenominator: lesson.hasDenominator ? {
+                                selectedLessonForHomework = lesson
+                                selectedLessonType = .denominator
+                            } : nil,
+                            onToggleComplete: { hw in
+                                homeworks[hw.lessonId] = hw
+                                onHomeworksChanged?()
+                            },
+                            onDelete: { hw in
+                                homeworks.removeValue(forKey: hw.lessonId)
+                                onHomeworksChanged?()
+                            }
+                        )
+                        
+                        // Перемена как разделитель
+                        if index < daySchedule.lessons.count - 1,
+                           let breakData = breakInfo(afterLesson: lesson.number) {
+                            BreakDivider(
+                                duration: breakData.duration,
+                                startTime: breakData.start,
+                                endTime: breakData.end
+                            )
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial.opacity(0.3))
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color.white.opacity(0.03))
+                        )
+                )
+            }
+            
+            // Замены для этого дня
+            if !dayReplacements.isEmpty {
+                replacementsSectionFor(replacements: dayReplacements, dayOffset: offset)
+            }
+        }
+    }
+    
+    // Получаем расписание для определённого дня (offset: 0 = сегодня, 1 = завтра, ...)
+    private func getScheduleForOffset(_ offset: Int) -> DaySchedule {
+        let calendar = Calendar.current
+        guard let targetDate = calendar.date(byAdding: .day, value: offset, to: Date()) else {
+            return schedule
+        }
+        return viewModel.getSchedule(for: targetDate, group: group)
+    }
+    
+    // Получаем замены для определённого дня
+    private func getReplacementsForOffset(_ offset: Int) -> [Replacement] {
+        guard let replacements = viewModel.replacements else { return [] }
+        
+        let calendar = Calendar.current
+        guard let targetDate = calendar.date(byAdding: .day, value: offset, to: Date()) else { return [] }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy"
+        let targetDateString = formatter.string(from: targetDate)
+        
+        // Ищем замены на целевую дату
+        for day in replacements.days {
+            if day.date == targetDateString {
+                return day.groups.flatMap { $0.replacements }
+            }
+        }
+        
+        return []
+    }
+    
+    // Секция замен для конкретного дня
+    @ViewBuilder
+    private func replacementsSectionFor(replacements: [Replacement], dayOffset: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .foregroundColor(.orange)
+                Text(dayOffset == 0 ? "Изменения на сегодня" : "Изменения")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text("\(replacements.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.orange.opacity(0.2))
+                    )
+            }
+            
+            VStack(spacing: 8) {
+                ForEach(replacements) { replacement in
+                    ReplacementRow(replacement: replacement)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.orange.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.orange.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+    
     private var headerCard: some View {
-        // Цвет привязан к неделе из настроек
-        let isNumerator = viewModel.weekInfo?.weekType == .numerator
+        // Цвет привязан к текущей неделе (автоматически)
+        let isNumerator = currentWeekType == .numerator
         let colors: [Color] = isNumerator ? appSettings.numeratorGradient : appSettings.denominatorGradient
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.dateFormat = "EEEE, d MMMM"
+        
+        // Дата для отображения (зависит от выбранного дня)
+        let calendar = Calendar.current
+        let displayDate = calendar.date(byAdding: .day, value: selectedDayOffset, to: Date()) ?? Date()
 
         return ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -195,9 +374,9 @@ struct TodayView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Сегодня")
+                    Text(dayName(for: selectedDayOffset))
                         .font(appSettings.scaledFont(.title).weight(.bold))
-                    Text(formatter.string(from: schedule.date).capitalized)
+                    Text(formatter.string(from: displayDate).capitalized)
                         .font(appSettings.scaledFont(.subheadline))
                         .foregroundColor(.white.opacity(0.85))
                 }
@@ -205,87 +384,7 @@ struct TodayView: View {
             .padding(20)
         }
         .frame(height: 160)
-    }
-
-    private var replacementsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Заголовок
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.caption)
-                        .foregroundColor(viewModel.hasTodayReplacements ? .orange : .white.opacity(0.5))
-                    Text("Изменения на сегодня")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                }
-                
-                Spacer()
-                
-                if viewModel.isLoadingReplacements {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .tint(.white.opacity(0.5))
-                } else if viewModel.hasTodayReplacements {
-                    Text("\(viewModel.todayReplacements.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.orange.opacity(0.15))
-                        )
-                }
-            }
-            .padding(.horizontal, 4)
-
-            // Замены (в стиле расписания)
-            if viewModel.hasTodayReplacements {
-                VStack(spacing: 0) {
-                    ForEach(viewModel.todayReplacements) { replacement in
-                        ReplacementRow(replacement: replacement)
-                        
-                        // Разделитель между заменами
-                        if replacement.id != viewModel.todayReplacements.last?.id {
-                            Rectangle()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(height: 1)
-                                .padding(.horizontal, 16)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial.opacity(0.3))
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.white.opacity(0.03))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(Color.orange.opacity(0.15), lineWidth: 1)
-                        )
-                )
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green.opacity(0.7))
-                        .font(.caption)
-                    Text("Замен нет")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.03))
-                )
-            }
-        }
-        .padding(.top, 12)
+        .animation(.easeInOut(duration: 0.2), value: selectedDayOffset)
     }
     
     // MARK: - Banner Section (Рекламные баннеры)
@@ -2449,5 +2548,6 @@ private struct ColorPresetButton: View {
         .animation(.spring(response: 0.3), value: isSelected)
     }
 }
+
 
 

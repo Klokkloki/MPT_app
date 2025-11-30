@@ -165,4 +165,42 @@ class AppSettingsService: ObservableObject {
             denominatorColorIndex = index
         }
     }
+    
+    // MARK: - Week Type Calculation
+    
+    /// Определяем тип недели автоматически по дате
+    /// Семестр обычно начинается 1 сентября с числителя
+    /// После каждого воскресенья (00:00) неделя меняется
+    static func currentWeekType(for date: Date = Date()) -> WeekType {
+        let calendar = Calendar.current
+        
+        // Базовая дата: 1 сентября 2025 года - числитель
+        // Можно изменить если нужно синхронизировать с реальным расписанием колледжа
+        var components = DateComponents()
+        components.year = 2025
+        components.month = 9
+        components.day = 1
+        let baseDate = calendar.date(from: components) ?? Date()
+        
+        // Считаем количество недель от базовой даты
+        let weeksBetween = calendar.dateComponents([.weekOfYear], from: baseDate, to: date).weekOfYear ?? 0
+        
+        // Чётные недели - числитель, нечётные - знаменатель
+        return (weeksBetween % 2 == 0) ? .numerator : .denominator
+    }
+    
+    /// Текущий тип недели
+    var currentWeekType: WeekType {
+        Self.currentWeekType()
+    }
+    
+    /// Градиент для текущей недели
+    var currentWeekGradient: [Color] {
+        currentWeekType == .numerator ? numeratorGradient : denominatorGradient
+    }
+    
+    /// Цвет для текущей недели
+    var currentWeekColor: Color {
+        currentWeekType == .numerator ? numeratorColor : denominatorColor
+    }
 }

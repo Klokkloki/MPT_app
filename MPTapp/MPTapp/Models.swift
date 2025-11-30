@@ -500,15 +500,17 @@ struct ResourceCollection: Identifiable, Hashable, Codable {
     let category: String
     let gradientColors: [String]?
     let isPinned: Bool
+    let iconName: String?   // Имя файла из Assets для иконки подборки
     let resources: [Resource]
     
-    init(id: String, title: String, subtitle: String? = nil, category: String, gradientColors: [String]? = nil, isPinned: Bool = false, resources: [Resource] = []) {
+    init(id: String, title: String, subtitle: String? = nil, category: String, gradientColors: [String]? = nil, isPinned: Bool = false, iconName: String? = nil, resources: [Resource] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.category = category
         self.gradientColors = gradientColors
         self.isPinned = isPinned
+        self.iconName = iconName
         self.resources = resources
     }
 }
@@ -518,15 +520,17 @@ struct Resource: Identifiable, Hashable, Codable {
     let title: String
     let description: String?
     let url: String
-    let icon: String?
+    let icon: String?       // Эмодзи иконка
+    let iconName: String?   // Имя файла из Assets (приоритет над icon)
     let subscribers: String?
     
-    init(id: String, title: String, description: String? = nil, url: String, icon: String? = nil, subscribers: String? = nil) {
+    init(id: String, title: String, description: String? = nil, url: String, icon: String? = nil, iconName: String? = nil, subscribers: String? = nil) {
         self.id = id
         self.title = title
         self.description = description
         self.url = url
         self.icon = icon
+        self.iconName = iconName
         self.subscribers = subscribers
     }
 }

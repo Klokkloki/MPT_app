@@ -1437,14 +1437,23 @@ private struct ResourceRow: View {
             }
         }) {
             HStack(spacing: 12) {
-                // Иконка
-                Text(resource.icon ?? "🔗")
-                    .font(.title3)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        Circle()
-                            .fill(Color.white.opacity(0.08))
-                    )
+                // Иконка (приоритет iconName > icon)
+                if let iconName = resource.iconName, !iconName.isEmpty,
+                   let image = UIImage(named: iconName) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                } else {
+                    Text(resource.icon ?? "🔗")
+                        .font(.title3)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(Color.white.opacity(0.08))
+                        )
+                }
                 
                 // Информация
                 VStack(alignment: .leading, spacing: 3) {

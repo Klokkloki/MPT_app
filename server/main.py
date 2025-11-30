@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "3.0"
+CONTENT_VERSION = "4.0"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -487,6 +487,11 @@ async def get_resource_collections():
     Получить подборки ресурсов (закреплённые плашки с несколькими ссылками)
     
     Категории: programming | security | law | design | other
+    
+    Для каждого ресурса можно указать:
+    - icon: эмодзи для иконки (например "🐧")
+    - iconName: имя файла из Assets.xcassets для своей иконки (например "skillbox_logo")
+    Если указано iconName, оно имеет приоритет над icon (эмодзи)
     """
     collections = [
         # === ИНФОРМАЦИОННАЯ БЕЗОПАСНОСТЬ ===
@@ -497,6 +502,7 @@ async def get_resource_collections():
             "category": "security",
             "gradientColors": ["#FF6B6B", "#EE5A24"],
             "isPinned": True,
+            "iconName": None,  # Можно указать имя фото из Assets: "security_icon"
             "resources": [
                 {
                     "id": "sec-1",
@@ -504,6 +510,7 @@ async def get_resource_collections():
                     "description": "Главные ресурсы для хакера, инструменты, туториалы",
                     "url": "https://t.me/linuxkalii",
                     "icon": "🐧",
+                    "iconName": None,  # Можно указать: "kali_logo"
                     "subscribers": "52.9K"
                 },
                 {
@@ -512,6 +519,7 @@ async def get_resource_collections():
                     "description": "Один из ведущих каналов по информационной безопасности",
                     "url": "https://t.me/infosec_tg",
                     "icon": "🛡️",
+                    "iconName": None,
                     "subscribers": "10.3K"
                 },
                 {
@@ -520,6 +528,7 @@ async def get_resource_collections():
                     "description": "Парсим свежие фриланс заказы каждый день",
                     "url": "https://t.me/bkstorage",
                     "icon": "📁",
+                    "iconName": None,
                     "subscribers": "6.2K"
                 }
             ]
@@ -533,6 +542,7 @@ async def get_resource_collections():
             "category": "programming",
             "gradientColors": ["#6C5CE7", "#A29BFE"],
             "isPinned": True,
+            "iconName": None,  # Можно указать: "programming_icon"
             "resources": [
                 {
                     "id": "prog-1",
@@ -540,6 +550,7 @@ async def get_resource_collections():
                     "description": "Python скрипты, нейросети, боты, автоматизация. Всё бесплатно!",
                     "url": "https://t.me/python2day",
                     "icon": "🐍",
+                    "iconName": None,
                     "subscribers": "63.5K"
                 },
                 {
@@ -548,6 +559,7 @@ async def get_resource_collections():
                     "description": "Авторский канал действующего Python-разработчика",
                     "url": "https://t.me/python_tg",
                     "icon": "👨‍💻",
+                    "iconName": None,
                     "subscribers": "22K"
                 },
                 {
@@ -556,6 +568,7 @@ async def get_resource_collections():
                     "description": "YouTube канал о программировании простым языком",
                     "url": "https://youtube.com/@HowdyHo",
                     "icon": "🎬",
+                    "iconName": None,
                     "subscribers": "1M+"
                 },
                 {
@@ -564,6 +577,7 @@ async def get_resource_collections():
                     "description": "Бесплатные курсы по программированию от университетов",
                     "url": "https://stepik.org",
                     "icon": "📚",
+                    "iconName": None,
                     "subscribers": ""
                 }
             ]
@@ -577,6 +591,7 @@ async def get_resource_collections():
             "category": "law",
             "gradientColors": ["#00B894", "#55EFC4"],
             "isPinned": True,
+            "iconName": None,  # Можно указать: "law_icon"
             "resources": [
                 {
                     "id": "law-1",
@@ -584,6 +599,7 @@ async def get_resource_collections():
                     "description": "Правовые базы, законодательство, судебная практика",
                     "url": "https://www.consultant.ru",
                     "icon": "📖",
+                    "iconName": None,
                     "subscribers": ""
                 },
                 {
@@ -592,6 +608,7 @@ async def get_resource_collections():
                     "description": "Информационно-правовой портал",
                     "url": "https://www.garant.ru",
                     "icon": "⚖️",
+                    "iconName": None,
                     "subscribers": ""
                 },
                 {
@@ -600,6 +617,7 @@ async def get_resource_collections():
                     "description": "Новости права, аналитика, обзоры законодательства",
                     "url": "https://pravo.ru",
                     "icon": "📰",
+                    "iconName": None,
                     "subscribers": ""
                 }
             ]

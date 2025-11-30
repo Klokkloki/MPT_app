@@ -157,6 +157,7 @@ final class ContentUpdateService: ObservableObject {
                 category: apiCollection.category,
                 gradientColors: apiCollection.gradientColors,
                 isPinned: apiCollection.isPinned ?? false,
+                iconName: apiCollection.iconName,
                 resources: apiCollection.resources.map { apiResource in
                     Resource(
                         id: apiResource.id,
@@ -164,6 +165,7 @@ final class ContentUpdateService: ObservableObject {
                         description: apiResource.description,
                         url: apiResource.url,
                         icon: apiResource.icon,
+                        iconName: apiResource.iconName,
                         subscribers: apiResource.subscribers
                     )
                 }
@@ -202,6 +204,7 @@ final class ContentUpdateService: ObservableObject {
         let category: String
         let gradientColors: [String]?
         let isPinned: Bool?
+        let iconName: String?
         let resources: [ResourceAPI]
     }
     
@@ -211,6 +214,7 @@ final class ContentUpdateService: ObservableObject {
         let description: String?
         let url: String
         let icon: String?
+        let iconName: String?
         let subscribers: String?
     }
     
