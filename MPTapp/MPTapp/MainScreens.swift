@@ -48,34 +48,40 @@ struct TodayView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: 16) {
-                        headerCard
-                        
-                        // Индикаторы дней (сегодня, завтра, послезавтра)
-                        daySelector
-                        
-                        // Свайпаемый контент дней (увеличена высота)
-                        TabView(selection: $selectedDayOffset) {
-                            ForEach(0..<3, id: \.self) { offset in
-                                dayContent(for: offset)
-                                    .tag(offset)
-                            }
-                        }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
-                        .frame(minHeight: 600)
-                        
-                        // Рекламные баннеры (внизу, ненавязчиво)
-                        bannerSection
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 24)
+            VStack(spacing: 0) {
+                // Верхняя часть (не скроллится)
+                VStack(spacing: 16) {
+                    headerCard
+                    
+                    // Индикаторы дней (сегодня, завтра, послезавтра)
+                    daySelector
+                    
+                    // Заголовок расписания + локация (статичный)
+                    scheduleHeader
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .background(Color.black)
+                
+                // Свайпаемый контент дней (со внутренней прокруткой)
+                TabView(selection: $selectedDayOffset) {
+                    ForEach(0..<3, id: \.self) { offset in
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                dayContentScrollable(for: offset)
+                                
+                                // Рекламные баннеры внизу каждого дня
+                                bannerSection
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 24)
+                        }
+                        .tag(offset)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
+            .background(Color.black.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -164,28 +170,34 @@ struct TodayView: View {
         return formatter.string(from: date)
     }
     
-    // MARK: - Day Content (Контент дня)
+    // MARK: - Schedule Header (Статичный заголовок)
+    
+    private var scheduleHeader: some View {
+        let daySchedule = getScheduleForOffset(selectedDayOffset)
+        
+        return HStack {
+            Text("Расписание")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.white)
+            
+            Spacer()
+            
+            if let campus = daySchedule.lessons.first?.campus {
+                CampusBadge(campus: campus)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+    }
+    
+    // MARK: - Day Content Scrollable (Контент дня для прокрутки)
     
     @ViewBuilder
-    private func dayContent(for offset: Int) -> some View {
+    private func dayContentScrollable(for offset: Int) -> some View {
         let daySchedule = getScheduleForOffset(offset)
         let dayReplacements = getReplacementsForOffset(offset)
         
         VStack(spacing: 16) {
-            // Заголовок с локацией
-            HStack {
-                Text("Расписание")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                if let campus = daySchedule.lessons.first?.campus {
-                    CampusBadge(campus: campus)
-                }
-            }
-            .padding(.horizontal, 4)
-
             // Пары
             if daySchedule.isDayOff || daySchedule.lessons.isEmpty {
                 VStack(spacing: 12) {
