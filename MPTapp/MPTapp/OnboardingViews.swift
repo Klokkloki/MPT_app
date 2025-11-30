@@ -61,7 +61,7 @@ struct OnboardingFlowView: View {
                         // Сразу загружаем расписание для выбранной группы (чтобы было в кеше)
                         Task {
                             await viewModel.loadSchedule(for: group)
-                            await viewModel.loadReplacements(for: group.name)
+                            await viewModel.loadReplacements(for: group)
                         }
                     },
                     onBack: {
