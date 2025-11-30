@@ -58,7 +58,7 @@ struct TodayView: View {
                         // Индикаторы дней (сегодня, завтра, послезавтра)
                         daySelector
                         
-                        // Свайпаемый контент дней
+                        // Свайпаемый контент дней (увеличена высота)
                         TabView(selection: $selectedDayOffset) {
                             ForEach(0..<3, id: \.self) { offset in
                                 dayContent(for: offset)
@@ -66,7 +66,7 @@ struct TodayView: View {
                             }
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
-                        .frame(minHeight: 400)
+                        .frame(minHeight: 600)
                         
                         // Рекламные баннеры (внизу, ненавязчиво)
                         bannerSection
@@ -301,42 +301,57 @@ struct TodayView: View {
     // Секция замен для конкретного дня
     @ViewBuilder
     private func replacementsSectionFor(replacements: [Replacement], dayOffset: Int) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Заголовок
             HStack {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundColor(.orange)
-                Text(dayOffset == 0 ? "Изменения на сегодня" : "Изменения")
-                    .font(.headline.weight(.semibold))
-                    .foregroundColor(.white)
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    Text(dayOffset == 0 ? "Изменения на сегодня" : "Изменения")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                }
                 
                 Spacer()
                 
                 Text("\(replacements.count)")
-                    .font(.caption.weight(.semibold))
+                    .font(.caption.weight(.bold))
                     .foregroundColor(.orange)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
                     .background(
                         Capsule()
-                            .fill(Color.orange.opacity(0.2))
+                            .fill(Color.orange.opacity(0.15))
                     )
             }
-            
-            VStack(spacing: 8) {
+            .padding(.horizontal, 4)
+
+            // Замены (в стиле расписания)
+            VStack(spacing: 0) {
                 ForEach(replacements) { replacement in
                     ReplacementRow(replacement: replacement)
+                    
+                    // Разделитель между заменами
+                    if replacement.id != replacements.last?.id {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.06))
+                            .frame(height: 1)
+                            .padding(.horizontal, 16)
+                    }
                 }
             }
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial.opacity(0.3))
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.white.opacity(0.03))
+                    )
+            )
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.orange.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.orange.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(.top, 12)
     }
     
     private var headerCard: some View {
@@ -791,58 +806,87 @@ private struct ReplacementRow: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Верхняя строка: номер пары и время
-            HStack {
-                // Номер пары
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(replacement.isCancelled ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
-                        .frame(width: 32, height: 32)
+        HStack(alignment: .top, spacing: 12) {
+            // Номер пары (как в LessonCard)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(replacement.isCancelled ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
+                    .frame(width: 38, height: 38)
 
-                    Text("\(replacement.pairNumber)")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundColor(replacement.isCancelled ? .orange : .green)
-                }
-                
-                Spacer()
-                
-                // Время справа
-                Text("\(lessonTime.start) - \(lessonTime.end)")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.white.opacity(0.6))
+                Text("\(replacement.pairNumber)")
+                    .font(.callout.weight(.bold))
+                    .foregroundColor(replacement.isCancelled ? .orange : .green)
             }
             
-            // Основной контент замены
-            VStack(alignment: .leading, spacing: 6) {
-                // Что заменяют (полный текст)
-                if !isAddition {
-                    Text(replacement.originalSubject)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.5))
-                        .strikethrough(replacement.isCancelled, color: .orange.opacity(0.5))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                // На что заменяют
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: replacement.isCancelled ? "xmark.circle.fill" : (isAddition ? "plus.circle.fill" : "arrow.right.circle.fill"))
-                        .font(.system(size: 12))
-                        .foregroundColor(replacement.isCancelled ? .orange : .green)
-                        .padding(.top, 2)
-                    
-                    Text(replacement.newSubject)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(replacement.isCancelled ? .orange : .white)
-                        .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 4) {
+                // Если это добавление — показываем только новый предмет
+                if isAddition {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.green)
+                            .padding(.top, 3)
+                        Text(replacement.newSubject)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else if replacement.isCancelled {
+                    // Отмена
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(replacement.originalSubject)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.5))
+                            .strikethrough()
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                                .padding(.top, 3)
+                            Text(replacement.newSubject)
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                } else {
+                    // Обычная замена
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(replacement.originalSubject)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.4))
+                            .strikethrough()
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.green.opacity(0.8))
+                                .padding(.top, 3)
+                            Text(replacement.newSubject)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
             }
+            
+            Spacer()
+            
+            // Время справа
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(lessonTime.start)
+                    .font(.footnote.weight(.medium))
+                Text(lessonTime.end)
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            .foregroundColor(.white)
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.03))
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
