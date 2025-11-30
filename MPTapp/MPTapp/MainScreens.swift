@@ -2027,6 +2027,53 @@ struct SettingsView: View {
                                 .disabled(viewModel.isLoading)
                             }
                         )
+                        
+                        // MARK: - Очистка кеша
+                        GroupBoxView(
+                            title: "Кеш",
+                            content: {
+                                VStack(spacing: 12) {
+                                    Button(action: {
+                                        StorageService.shared.clearScheduleCache()
+                                    }) {
+                                        SettingsRow(
+                                            icon: "trash.fill",
+                                            title: "Очистить кеш расписания",
+                                            subtitle: "Удалить сохранённое расписание (ДЗ сохранятся)"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                    
+                                    Button(action: {
+                                        StorageService.shared.clearContentCache()
+                                    }) {
+                                        SettingsRow(
+                                            icon: "photo.fill",
+                                            title: "Очистить кеш контента",
+                                            subtitle: "Удалить кеш новостей и рекомендаций"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                    
+                                    Button(action: {
+                                        StorageService.shared.clearCache()
+                                    }) {
+                                        SettingsRow(
+                                            icon: "trash.circle.fill",
+                                            title: "Очистить весь кеш",
+                                            subtitle: "Удалить весь кеш (ДЗ и настройки сохранятся)"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        )
 
                         GroupBoxView(
                             title: "Обратная связь",

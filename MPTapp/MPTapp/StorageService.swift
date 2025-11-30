@@ -157,5 +157,101 @@ class StorageService {
         guard let age = getCacheAge(for: key) else { return false }
         return age < 24 * 60 * 60 // 24 часа
     }
+    
+    // MARK: - Cache Clearing (Безопасная очистка кеша)
+    
+    /// Безопасно очищает только кешированные данные (расписание, контент)
+    /// НЕ удаляет: домашние задания, настройки, выбор группы, рейтинги
+    func clearCache() {
+        let allKeys = defaults.dictionaryRepresentation().keys
+        
+        // Список ключей, которые НУЖНО удалить (только кеш)
+        let cacheKeysToRemove = [
+            Keys.cachedWeekInfo,
+            Keys.cachedSpecialties,
+            Keys.cachedSchedule,
+            Keys.cachedReplacements,
+            Keys.cachedGroups,
+            // Временные метки
+            Keys.lastUpdateTime
+        ]
+        
+        // Список ключей, которые НЕЛЬЗЯ удалять (важные данные)
+        let importantKeys = [
+            Keys.homeworks,                    // Домашние задания
+            "selectedSpecialtyId",             // Выбор специальности
+            "selectedGroupId",                 // Выбор группы
+            "selectedSpecialtyName",           // Имя специальности
+            "selectedGroupName",               // Имя группы
+            "appTextScale",                    // Настройки размера текста
+            "numeratorColorIndex",             // Настройки цветов
+            "denominatorColorIndex",
+            "teacher_ratings",                 // Рейтинги преподавателей
+            "user_votes",                     // Голоса пользователя
+            "cached_advertisements",           // Контент (можно обновить, но не критично)
+            "cached_news_items",
+            "content_version",
+            "last_content_update"
+        ]
+        
+        // Удаляем только кеш
+        for key in allKeys {
+            // Проверяем, что это кеш-ключ
+            var shouldRemove = false
+            
+            // Проверяем точные совпадения
+            if cacheKeysToRemove.contains(key) {
+                shouldRemove = true
+            }
+            
+            // Проверяем префиксы (для динамических ключей)
+            if key.hasPrefix(Keys.cachedSchedule) ||
+               key.hasPrefix(Keys.cachedReplacements) ||
+               key.hasPrefix(Keys.cachedGroups) ||
+               key.hasPrefix(Keys.lastUpdateTime) {
+                shouldRemove = true
+            }
+            
+            // НЕ удаляем важные данные
+            if importantKeys.contains(key) {
+                shouldRemove = false
+            }
+            
+            if shouldRemove {
+                defaults.removeObject(forKey: key)
+                print("✅ Очищен кеш: \(key)")
+            }
+        }
+        
+        print("✅ Очистка кеша завершена. Важные данные сохранены.")
+    }
+    
+    /// Очищает только кеш контента (рекламы, новости)
+    func clearContentCache() {
+        defaults.removeObject(forKey: "cached_advertisements")
+        defaults.removeObject(forKey: "cached_news_items")
+        defaults.removeObject(forKey: "content_version")
+        defaults.removeObject(forKey: "last_content_update")
+        print("✅ Очищен кеш контента")
+    }
+    
+    /// Очищает только кеш расписания
+    func clearScheduleCache() {
+        let allKeys = defaults.dictionaryRepresentation().keys
+        
+        for key in allKeys {
+            if key.hasPrefix(Keys.cachedSchedule) ||
+               key.hasPrefix(Keys.cachedReplacements) ||
+               key.hasPrefix(Keys.cachedGroups) ||
+               key == Keys.cachedWeekInfo ||
+               key == Keys.cachedSpecialties ||
+               key.hasPrefix(Keys.lastUpdateTime) {
+                defaults.removeObject(forKey: key)
+                print("✅ Очищен кеш расписания: \(key)")
+            }
+        }
+        
+        print("✅ Очистка кеша расписания завершена")
+    }
 }
 
