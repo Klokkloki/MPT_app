@@ -74,60 +74,193 @@ struct OnboardingFlowView: View {
 
 private struct WelcomeScreen: View {
     var onContinue: () -> Void
+    
+    @State private var animateGradient = false
+    @State private var animateLogo = false
+    @State private var animateText = false
+    @State private var animateButton = false
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            ZStack {
+        ZStack {
+            // Анимированный градиентный фон
+            LinearGradient(
+                colors: [
+                    Color(red: 0.1, green: 0.1, blue: 0.2),
+                    Color.black,
+                    Color(red: 0.05, green: 0.1, blue: 0.15)
+                ],
+                startPoint: animateGradient ? .topLeading : .bottomTrailing,
+                endPoint: animateGradient ? .bottomTrailing : .topLeading
+            )
+            .ignoresSafeArea()
+            .animation(.easeInOut(duration: 5).repeatForever(autoreverses: true), value: animateGradient)
+            
+            // Декоративные круги на фоне
+            GeometryReader { geo in
                 Circle()
-                    .fill(Color.white.opacity(0.06))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 12)
-
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.blue.opacity(0.15), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 200
+                        )
+                    )
+                    .frame(width: 400, height: 400)
+                    .offset(x: -100, y: -50)
+                    .blur(radius: 60)
+                
                 Circle()
-                    .fill(Color.white)
-                    .frame(width: 140, height: 140)
-                    .shadow(color: .white.opacity(0.4), radius: 24, x: 0, y: 0)
-
-                Image(systemName: "graduationcap.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .foregroundColor(.black)
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.purple.opacity(0.1), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 150
+                        )
+                    )
+                    .frame(width: 300, height: 300)
+                    .offset(x: geo.size.width - 100, y: geo.size.height - 200)
+                    .blur(radius: 50)
             }
+            
+            VStack(spacing: 40) {
+                Spacer()
 
-            VStack(spacing: 8) {
-                Text("Добро пожаловать в")
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.white)
+                // Логотип с анимацией
+                ZStack {
+                    // Внешнее свечение
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.white.opacity(0.1), Color.clear],
+                                center: .center,
+                                startRadius: 60,
+                                endRadius: 140
+                            )
+                        )
+                        .frame(width: 280, height: 280)
+                        .scaleEffect(animateLogo ? 1.1 : 0.9)
+                        .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateLogo)
+                    
+                    // Кольца
+                    ForEach(0..<3) { i in
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.1), Color.white.opacity(0.02)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                            .frame(width: CGFloat(160 + i * 40), height: CGFloat(160 + i * 40))
+                            .scaleEffect(animateLogo ? 1.05 : 0.95)
+                            .animation(.easeInOut(duration: 2).delay(Double(i) * 0.2).repeatForever(autoreverses: true), value: animateLogo)
+                    }
+                    
+                    // Основной круг с логотипом
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white, Color.white.opacity(0.9)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 130, height: 130)
+                        .shadow(color: .white.opacity(0.3), radius: 30, x: 0, y: 0)
+                        .overlay(
+                            Image(systemName: "graduationcap.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 60, height: 60)
+                                .foregroundColor(.black)
+                        )
+                        .scaleEffect(animateLogo ? 1.0 : 0.8)
+                        .opacity(animateLogo ? 1 : 0)
+                        .animation(.spring(response: 0.8, dampingFraction: 0.6).delay(0.2), value: animateLogo)
+                }
 
-                Text("«Мой МПТ»")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundColor(.white)
-            }
+                // Текст с анимацией
+                VStack(spacing: 12) {
+                    Text("Добро пожаловать")
+                        .font(.title3.weight(.medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .offset(y: animateText ? 0 : 20)
+                        .opacity(animateText ? 1 : 0)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: animateText)
 
-            Text("Мы рады, что вы выбрали именно этот техникум для обучения. Это приложение поможет быстро и удобно смотреть расписание и изменения.")
-                .font(.body)
-                .foregroundColor(.white.opacity(0.75))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                    Text("Мой МПТ")
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .offset(y: animateText ? 0 : 20)
+                        .opacity(animateText ? 1 : 0)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.5), value: animateText)
+                }
 
-            Spacer()
+                // Описание
+                VStack(spacing: 16) {
+                    Text("Ваш помощник в учёбе")
+                        .font(.headline.weight(.medium))
+                        .foregroundColor(.white.opacity(0.9))
+                    
+                    Text("Расписание, домашние задания, новости колледжа — всё в одном месте")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(.horizontal, 40)
+                .offset(y: animateText ? 0 : 20)
+                .opacity(animateText ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.6), value: animateText)
 
-            Button(action: onContinue) {
-                Text("Отлично")
-                    .font(.headline.weight(.semibold))
+                Spacer()
+
+                // Кнопка с анимацией
+                Button(action: onContinue) {
+                    HStack(spacing: 10) {
+                        Text("Продолжить")
+                            .font(.headline.weight(.semibold))
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.subheadline.weight(.bold))
+                    }
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 18)
                     .background(
                         Capsule()
                             .fill(Color.white)
+                            .shadow(color: .white.opacity(0.3), radius: 20, x: 0, y: 10)
                     )
+                }
+                .padding(.horizontal, 28)
+                .scaleEffect(animateButton ? 1 : 0.9)
+                .opacity(animateButton ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.8), value: animateButton)
+                
+                // Версия приложения
+                Text("Версия 2.0")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.3))
+                    .padding(.bottom, 24)
+                    .opacity(animateButton ? 1 : 0)
+                    .animation(.easeOut.delay(1), value: animateButton)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
+        }
+        .onAppear {
+            animateGradient = true
+            animateLogo = true
+            animateText = true
+            animateButton = true
         }
     }
 }

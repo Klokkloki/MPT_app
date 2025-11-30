@@ -1810,12 +1810,15 @@ struct SettingsView: View {
     
     @ObservedObject var viewModel: ScheduleViewModel
     @ObservedObject var appSettings = AppSettingsService.shared
+    @Environment(\.openURL) private var openURL
     var onChangeGroup: (Specialty, Group) -> Void
     
     @State private var showingSpecialtyPicker = false
     @State private var showingGroupPicker = false
     @State private var tempSelectedSpecialty: Specialty?
     @State private var tempSelectedGroup: Group?
+    @State private var toastMessage: String? = nil
+    @State private var showToast = false
 
     var body: some View {
         NavigationStack {
@@ -1997,6 +2000,7 @@ struct SettingsView: View {
                                 Button(action: {
                                     withAnimation(.spring()) {
                                         appSettings.resetToDefaults()
+                                        showToastMessage("Настройки сброшены")
                                     }
                                 }) {
                                     SettingsRow(
@@ -2015,6 +2019,7 @@ struct SettingsView: View {
                                 Button(action: {
                                     Task {
                                         await viewModel.loadSchedule(for: selectedGroup)
+                                        showToastMessage("Расписание обновлено")
                                     }
                                 }) {
                                     SettingsRow(
@@ -2035,6 +2040,7 @@ struct SettingsView: View {
                                 VStack(spacing: 12) {
                                     Button(action: {
                                         StorageService.shared.clearScheduleCache()
+                                        showToastMessage("Кеш расписания очищен")
                                     }) {
                                         SettingsRow(
                                             icon: "trash.fill",
@@ -2049,6 +2055,7 @@ struct SettingsView: View {
                                     
                                     Button(action: {
                                         StorageService.shared.clearContentCache()
+                                        showToastMessage("Кеш контента очищен")
                                     }) {
                                         SettingsRow(
                                             icon: "photo.fill",
@@ -2063,6 +2070,7 @@ struct SettingsView: View {
                                     
                                     Button(action: {
                                         StorageService.shared.clearCache()
+                                        showToastMessage("Весь кеш очищен")
                                     }) {
                                         SettingsRow(
                                             icon: "trash.circle.fill",
@@ -2078,11 +2086,19 @@ struct SettingsView: View {
                         GroupBoxView(
                             title: "Обратная связь",
                             content: {
-                                SettingsRow(
-                                    icon: "envelope.fill",
-                                    title: "Связаться с разработчиком",
-                                    subtitle: "Напишите свои идеи и предложения"
-                                )
+                                Button(action: {
+                                    // Открываем Telegram разработчика
+                                    if let url = URL(string: "https://t.me/papajonsez") {
+                                        openURL(url)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "paperplane.fill",
+                                        title: "Связаться с разработчиком",
+                                        subtitle: "@papajonsez в Telegram"
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                         )
                         
@@ -2097,6 +2113,17 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 32)
+                }
+                
+                // Toast уведомление сверху
+                if showToast, let message = toastMessage {
+                    VStack {
+                        ToastView(message: message)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .padding(.top, 60)
+                        Spacer()
+                    }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showToast)
                 }
             }
             .navigationTitle("Настройки")
@@ -2148,6 +2175,50 @@ struct SettingsView: View {
                 .font(.subheadline)
                 .foregroundColor(.white.opacity(0.7))
         }
+    }
+    
+    // Показать toast-уведомление
+    private func showToastMessage(_ message: String) {
+        toastMessage = message
+        withAnimation {
+            showToast = true
+        }
+        
+        // Скрыть через 2 секунды
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                showToast = false
+            }
+        }
+    }
+}
+
+// MARK: - Toast View (Уведомление сверху)
+
+private struct ToastView: View {
+    let message: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title3)
+                .foregroundColor(.green)
+            
+            Text(message)
+                .font(.subheadline.weight(.medium))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.9))
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+        )
     }
 }
 

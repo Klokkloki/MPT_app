@@ -49,40 +49,50 @@ struct NewsView: View {
     // MARK: - News Carousel (Карусель новостей)
     
     private var newsCarousel: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             if !contentService.newsItems.isEmpty {
-                TabView(selection: $currentNewsIndex) {
-                    ForEach(0..<contentService.newsItems.count, id: \.self) { index in
-                        NewsCard(newsItem: contentService.newsItems[index])
-                            .tag(index)
+                // Используем ScrollView с paging для плавной прокрутки
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(Array(contentService.newsItems.enumerated()), id: \.element.id) { index, item in
+                            NewsCard(newsItem: item)
+                                .containerRelativeFrame(.horizontal)
+                                .scrollTransition { content, phase in
+                                    content
+                                        .opacity(phase.isIdentity ? 1 : 0.8)
+                                        .scaleEffect(phase.isIdentity ? 1 : 0.95)
+                                }
+                        }
                     }
+                    .scrollTargetLayout()
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never)) // Убираем стандартные точки
-                .frame(height: 320) // В 2 раза больше чем было (~160)
+                .scrollTargetBehavior(.paging)
+                .frame(height: 280)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 
-                // Индикаторы страниц (ниже карточки, чтобы не залезали на фотки)
-                HStack(spacing: 6) {
+                // Индикаторы страниц
+                HStack(spacing: 8) {
                     ForEach(0..<contentService.newsItems.count, id: \.self) { index in
-                        Circle()
-                            .fill(index == currentNewsIndex ? Color.white : Color.white.opacity(0.3))
-                            .frame(width: 6, height: 6)
+                        Capsule()
+                            .fill(Color.white.opacity(index == currentNewsIndex ? 1 : 0.3))
+                            .frame(width: index == currentNewsIndex ? 20 : 8, height: 8)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentNewsIndex)
                     }
                 }
-                .padding(.top, 12)
-                .padding(.bottom, 4)
+                .padding(.top, 4)
             } else {
                 // Плейсхолдер при загрузке новостей
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color.white.opacity(0.1))
-                    .frame(height: 320)
+                    .frame(height: 280)
                     .overlay(
-                        VStack {
+                        VStack(spacing: 12) {
                             ProgressView()
                                 .tint(.white)
+                                .scaleEffect(1.2)
                             Text("Загрузка новостей...")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                                .padding(.top, 8)
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.6))
                         }
                     )
             }
@@ -1032,140 +1042,107 @@ extension Color {
 private struct NewsCard: View {
     let newsItem: NewsItem
     
-    var body: some View {
-        ZStack {
-            // Фотография (пробуем загрузить из Assets или Bundle)
-            // 1. Пробуем загрузить из Assets (с расширением и без)
-            if let image = UIImage(named: newsItem.imageName) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            } else if let image = UIImage(named: "\(newsItem.imageName).jpg") {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
+    // Загрузка изображения
+    private var loadedImage: UIImage? {
+        // 1. Из Assets
+        if let image = UIImage(named: newsItem.imageName) { return image }
+        if let image = UIImage(named: "\(newsItem.imageName).jpg") { return image }
+        
+        // 2. Из Bundle/news
+        let extensions = ["jpg", "jpeg", "png", "webp"]
+        for ext in extensions {
+            if let path = Bundle.main.path(forResource: newsItem.imageName, ofType: ext, inDirectory: "news"),
+               let image = UIImage(contentsOfFile: path) {
+                return image
             }
-            // 2. Пробуем загрузить из Bundle/news (с расширением .jpg)
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "jpg", inDirectory: "news"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 2b. Пробуем загрузить из Bundle/news (с расширением .webp)
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "webp", inDirectory: "news"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 2c. Пробуем загрузить из Bundle/news (с расширением .png)
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "png", inDirectory: "news"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 3. Пробуем загрузить из Bundle/news (без расширения, но с полным именем)
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: nil, inDirectory: "news"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 4. Пробуем загрузить напрямую из Bundle (без папки news) - .jpg
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "jpg"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 4b. Пробуем загрузить напрямую из Bundle (без папки news) - .webp
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "webp"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 4c. Пробуем загрузить напрямую из Bundle (без папки news) - .png
-            else if let imagePath = Bundle.main.path(forResource: newsItem.imageName, ofType: "png"),
-                     let image = UIImage(contentsOfFile: imagePath) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            }
-            // 5. Fallback если изображение не найдено
-            else {
-                ZStack {
-                    Color.gray.opacity(0.3)
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 50))
-                            .foregroundColor(.white.opacity(0.5))
-                        Text("Изображение не найдено: \(newsItem.imageName)")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.5))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                }
-            }
-            
-            // Градиент снизу для текста
-            VStack {
-                Spacer()
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.7)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 120)
-            }
-            
-            // Текст поверх фотографии
-            VStack {
-                Spacer()
-                VStack(alignment: .leading, spacing: 6) {
-                    if let title = newsItem.title {
-                        Text(title)
-                            .font(.headline.weight(.bold))
-                            .foregroundColor(.white)
-                    }
-                    if let description = newsItem.description {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.9))
-                            .lineLimit(2)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+            if let path = Bundle.main.path(forResource: newsItem.imageName, ofType: ext),
+               let image = UIImage(contentsOfFile: path) {
+                return image
             }
         }
-        .frame(maxWidth: .infinity)
+        
+        // 3. Без расширения
+        if let path = Bundle.main.path(forResource: newsItem.imageName, ofType: nil, inDirectory: "news"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        
+        return nil
+    }
+    
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                // Фотография
+                if let image = loadedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                } else {
+                    // Fallback
+                    ZStack {
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        VStack(spacing: 12) {
+                            Image(systemName: "photo.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.white.opacity(0.4))
+                            Text(newsItem.imageName)
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.4))
+                        }
+                    }
+                }
+                
+                // Градиент снизу для текста (более плавный)
+                VStack {
+                    Spacer()
+                    LinearGradient(
+                        colors: [
+                            Color.clear,
+                            Color.black.opacity(0.3),
+                            Color.black.opacity(0.8)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 140)
+                }
+                
+                // Текст поверх фотографии (внутри изображения)
+                VStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let title = newsItem.title {
+                            Text(title)
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+                        }
+                        if let description = newsItem.description {
+                            Text(description)
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.9))
+                                .lineLimit(2)
+                                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
         )
     }
 }
