@@ -1291,39 +1291,42 @@ private struct ResourceCollectionCard: View {
         return .purple
     }
     
+    @ViewBuilder
+    private var collectionIcon: some View {
+        // Если есть iconName - показываем картинку из Assets (без обводки)
+        if let iconName = collection.iconName, !iconName.isEmpty,
+           let image = UIImage(named: iconName) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            // Градиентный фон + эмодзи (если нет картинки)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: collection.gradientColors?.compactMap { Color(hex: $0) } ?? [.purple, .blue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+                
+                Text(categoryIcon(for: collection.category))
+                    .font(.title2)
+            }
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Заголовок (всегда видна)
             Button(action: onToggleExpand) {
                 HStack(spacing: 14) {
                     // Иконка категории (приоритет iconName > categoryIcon)
-                    Group {
-                        // Если есть iconName - показываем картинку из Assets (без обводки)
-                        if let iconName = collection.iconName, !iconName.isEmpty,
-                           let image = UIImage(named: iconName) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 48, height: 48)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        } else {
-                            // Градиентный фон + эмодзи (если нет картинки)
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: collection.gradientColors?.compactMap { Color(hex: $0) } ?? [.purple, .blue],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 48, height: 48)
-                                
-                                Text(categoryIcon(for: collection.category))
-                                    .font(.title2)
-                            }
-                        }
-                    }
+                    collectionIcon
                     
                     // Текст
                     VStack(alignment: .leading, spacing: 4) {
