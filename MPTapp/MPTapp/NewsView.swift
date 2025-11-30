@@ -9,6 +9,7 @@ struct NewsView: View {
     @State private var currentNewsIndex: Int = 0
     @State private var selectedCategory: AdCategory? = nil
     @State private var expandedAdId: UUID? = nil
+    @State private var showAllRecommendations = false  // Показать все рекомендации
     
     var body: some View {
         NavigationStack {
@@ -122,25 +123,118 @@ struct NewsView: View {
             // Фильтр по категориям
             categoryFilter
             
-            // Список рекомендаций
-            LazyVStack(spacing: 12) {
-                ForEach(filteredAds) { ad in
-                    RecommendationCard(
-                        advertisement: ad,
-                        isExpanded: expandedAdId == ad.id,
-                        onToggleExpand: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                if expandedAdId == ad.id {
-                                    expandedAdId = nil
-                                } else {
-                                    expandedAdId = ad.id
+            // Если выбрано "Все" — показываем свёрнутый вид с кнопкой
+            if selectedCategory == nil && !showAllRecommendations {
+                // Показываем только первые 3 (закреплённые)
+                LazyVStack(spacing: 12) {
+                    ForEach(filteredAds.prefix(3)) { ad in
+                        RecommendationCard(
+                            advertisement: ad,
+                            isExpanded: expandedAdId == ad.id,
+                            onToggleExpand: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    expandedAdId = expandedAdId == ad.id ? nil : ad.id
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
+                }
+                
+                // Кнопка "Показать все"
+                if filteredAds.count > 3 {
+                    showAllButton
+                }
+            } else {
+                // Показываем все рекомендации
+                LazyVStack(spacing: 12) {
+                    ForEach(filteredAds) { ad in
+                        RecommendationCard(
+                            advertisement: ad,
+                            isExpanded: expandedAdId == ad.id,
+                            onToggleExpand: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    expandedAdId = expandedAdId == ad.id ? nil : ad.id
+                                }
+                            }
+                        )
+                    }
+                }
+                
+                // Кнопка "Свернуть" (только если выбрано "Все")
+                if selectedCategory == nil && showAllRecommendations {
+                    collapseButton
                 }
             }
         }
+    }
+    
+    // Кнопка "Показать все"
+    private var showAllButton: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                showAllRecommendations = true
+            }
+        }) {
+            HStack {
+                Text("Показать все")
+                    .font(.subheadline.weight(.medium))
+                
+                Text("(\(filteredAds.count - 3) ещё)")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.5))
+                
+                Spacer()
+                
+                Image(systemName: "chevron.down.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // Кнопка "Свернуть"
+    private var collapseButton: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                showAllRecommendations = false
+                expandedAdId = nil  // Сворачиваем все карточки
+            }
+        }) {
+            HStack {
+                Text("Свернуть")
+                    .font(.subheadline.weight(.medium))
+                
+                Spacer()
+                
+                Image(systemName: "chevron.up.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
     
     // Фильтрованные рекламы
@@ -166,6 +260,7 @@ struct NewsView: View {
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         selectedCategory = nil
+                        showAllRecommendations = false  // Сбрасываем при переключении на "Все"
                     }
                 }
                 
@@ -859,35 +954,43 @@ private struct RecommendationCard: View {
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
     
-    // Иконка
+    // Иконка (48x48, рекомендуемый размер изображения: 96x96 или 144x144 для @2x/@3x)
     @ViewBuilder
     private var iconView: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [cardColor.opacity(0.6), cardColor.opacity(0.3)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            // Фон иконки (показывается если нет фото)
+            if advertisement.iconName == nil || UIImage(named: advertisement.iconName ?? "") == nil {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [cardColor.opacity(0.6), cardColor.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .frame(width: 48, height: 48)
+                    .frame(width: 48, height: 48)
+            }
             
-            // Приоритет: иконка из Assets > эмодзи > системная иконка
+            // Приоритет: фото из Assets > эмодзи > системная иконка
             if let iconName = advertisement.iconName, let image = UIImage(named: iconName) {
+                // Фото из Assets (заполняет всю иконку)
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 28, height: 28)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else if let emoji = advertisement.iconEmoji {
+                // Эмодзи
                 Text(emoji)
                     .font(.system(size: 24))
             } else {
+                // Системная иконка по категории
                 Image(systemName: advertisement.category.icon)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
             }
         }
+        .frame(width: 48, height: 48)
     }
     
     // Цвет тега
