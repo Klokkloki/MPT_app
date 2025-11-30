@@ -270,88 +270,218 @@ private struct SelectSpecialtyScreen: View {
     @Binding var selectedSpecialty: Specialty?
     var onNext: () -> Void
     var onBack: () -> Void
+    
+    @State private var animateContent = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.white.opacity(0.7))
-                        .padding(8)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+        ZStack {
+            // Фон с градиентом
+            LinearGradient(
+                colors: [
+                    Color(red: 0.05, green: 0.05, blue: 0.15),
+                    Color.black,
+                    Color(red: 0.1, green: 0.05, blue: 0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // Декоративный элемент
+            VStack {
+                HStack {
+                    Spacer()
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.purple.opacity(0.15), Color.clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 150
+                            )
+                        )
+                        .frame(width: 300, height: 300)
+                        .offset(x: 100, y: -100)
+                        .blur(radius: 40)
                 }
                 Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                Text("Выберите свою")
-                    .font(.title.weight(.semibold))
-                    .foregroundColor(.white)
-                Text("специальность")
-                    .font(.title.weight(.semibold))
-                    .foregroundColor(.white)
-            }
-
-            VStack(spacing: 16) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .padding()
-                } else {
-                    Menu {
-                        ForEach(viewModel.specialties) { spec in
-                            Button(action: { selectedSpecialty = spec }) {
-                                Text(spec.name)
-                            }
+            
+            VStack(spacing: 0) {
+                // Верхняя панель
+                HStack {
+                    Button(action: onBack) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Назад")
+                                .font(.subheadline.weight(.medium))
                         }
-                    } label: {
-                        HStack {
-                            Text(selectedSpecialty?.name ?? "Выберите специальность")
-                                .foregroundColor(selectedSpecialty == nil ? .white.opacity(0.5) : .white)
-                                .lineLimit(2)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding()
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.06))
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
                         )
                     }
-                    .padding(.horizontal, 24)
+                    Spacer()
+                    
+                    // Индикатор шага
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 8, height: 8)
+                        Circle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                    }
                 }
-            }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
 
-            Spacer()
+                Spacer()
+                
+                // Иконка
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                        .blur(radius: 20)
+                    
+                    Image(systemName: "book.closed.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .scaleEffect(animateContent ? 1 : 0.8)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1), value: animateContent)
+                .padding(.bottom, 24)
 
-            Button(action: onNext) {
-                Text("Продолжить")
-                    .font(.headline.weight(.semibold))
-                    .foregroundColor(.black.opacity(selectedSpecialty == nil ? 0.4 : 1))
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(selectedSpecialty == nil ? 0.3 : 1))
-                    )
-            }
-            .disabled(selectedSpecialty == nil)
-            .padding(.horizontal, 24)
+                // Заголовок
+                VStack(spacing: 8) {
+                    Text("Выберите")
+                        .font(.title2.weight(.medium))
+                        .foregroundColor(.white.opacity(0.7))
+                    Text("специальность")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundColor(.white)
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2), value: animateContent)
+                .padding(.bottom, 32)
 
-            Button(action: onBack) {
-                Text("Назад")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white.opacity(0.7))
+                // Выбор специальности
+                VStack(spacing: 16) {
+                    if viewModel.isLoading {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.2)
+                            Text("Загрузка специальностей...")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.vertical, 40)
+                    } else {
+                        Menu {
+                            ForEach(viewModel.specialties) { spec in
+                                Button(action: { 
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        selectedSpecialty = spec 
+                                    }
+                                }) {
+                                    Text(spec.name)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedSpecialty == nil ? "list.bullet" : "checkmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(selectedSpecialty == nil ? .white.opacity(0.5) : .green)
+                                
+                                Text(selectedSpecialty?.name ?? "Нажмите для выбора")
+                                    .font(.body.weight(.medium))
+                                    .foregroundColor(selectedSpecialty == nil ? .white.opacity(0.5) : .white)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 18)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.white.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(
+                                                selectedSpecialty == nil ? Color.white.opacity(0.1) : Color.green.opacity(0.3),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3), value: animateContent)
+
+                Spacer()
+
+                // Кнопка продолжить
+                VStack(spacing: 16) {
+                    Button(action: onNext) {
+                        HStack(spacing: 10) {
+                            Text("Продолжить")
+                                .font(.headline.weight(.semibold))
+                            Image(systemName: "arrow.right")
+                                .font(.subheadline.weight(.bold))
+                        }
+                        .foregroundColor(selectedSpecialty == nil ? .white.opacity(0.4) : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            Capsule()
+                                .fill(selectedSpecialty == nil ? Color.white.opacity(0.15) : Color.white)
+                                .shadow(color: selectedSpecialty == nil ? .clear : .white.opacity(0.2), radius: 15, x: 0, y: 8)
+                        )
+                    }
+                    .disabled(selectedSpecialty == nil)
+                    .padding(.horizontal, 24)
+                    
+                    Text("Шаг 1 из 2")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: animateContent)
+                .padding(.bottom, 32)
             }
-            .padding(.top, 4)
-            .padding(.bottom, 24)
         }
-        .background(Color.black.ignoresSafeArea())
+        .onAppear {
+            animateContent = true
+        }
     }
 }
 
@@ -362,87 +492,245 @@ private struct SelectGroupScreen: View {
 
     var onFinish: () -> Void
     var onBack: () -> Void
+    
+    @State private var animateContent = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.white.opacity(0.7))
-                        .padding(8)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
-                }
+        ZStack {
+            // Фон с градиентом
+            LinearGradient(
+                colors: [
+                    Color(red: 0.05, green: 0.1, blue: 0.15),
+                    Color.black,
+                    Color(red: 0.1, green: 0.05, blue: 0.1)
+                ],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .ignoresSafeArea()
+            
+            // Декоративный элемент
+            VStack {
                 Spacer()
+                HStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.blue.opacity(0.15), Color.clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 150
+                            )
+                        )
+                        .frame(width: 300, height: 300)
+                        .offset(x: -100, y: 100)
+                        .blur(radius: 40)
+                    Spacer()
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                Text("Выберите свою")
-                    .font(.title.weight(.semibold))
-                    .foregroundColor(.white)
-                Text("учебную группу")
-                    .font(.title.weight(.semibold))
-                    .foregroundColor(.white)
-            }
-
-            VStack(spacing: 16) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .padding()
-                } else {
-                    Menu {
-                        ForEach(viewModel.groups) { group in
-                            Button(action: { selectedGroup = group }) {
-                                Text(group.name)
-                            }
+            
+            VStack(spacing: 0) {
+                // Верхняя панель
+                HStack {
+                    Button(action: onBack) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Назад")
+                                .font(.subheadline.weight(.medium))
                         }
-                    } label: {
-                        HStack {
-                            Text(selectedGroup?.name ?? "Выберите группу")
-                                .foregroundColor(selectedGroup == nil ? .white.opacity(0.5) : .white)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding()
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.06))
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
                         )
                     }
-                    .padding(.horizontal, 24)
+                    Spacer()
+                    
+                    // Индикатор шага
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 8, height: 8)
+                    }
                 }
-            }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
 
-            Spacer()
+                Spacer()
+                
+                // Иконка
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.cyan.opacity(0.3), Color.blue.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                        .blur(radius: 20)
+                    
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 45))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .scaleEffect(animateContent ? 1 : 0.8)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1), value: animateContent)
+                .padding(.bottom, 24)
 
-            Button(action: onFinish) {
-                Text("Продолжить")
-                    .font(.headline.weight(.semibold))
-                    .foregroundColor(.black.opacity(selectedGroup == nil ? 0.4 : 1))
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(selectedGroup == nil ? 0.3 : 1))
-                    )
-            }
-            .disabled(selectedGroup == nil)
-            .padding(.horizontal, 24)
+                // Заголовок
+                VStack(spacing: 8) {
+                    Text("Выберите")
+                        .font(.title2.weight(.medium))
+                        .foregroundColor(.white.opacity(0.7))
+                    Text("учебную группу")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundColor(.white)
+                    
+                    // Показываем выбранную специальность
+                    if let specialty = selectedSpecialty {
+                        Text(specialty.name)
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.5))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.08))
+                            )
+                            .padding(.top, 8)
+                    }
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2), value: animateContent)
+                .padding(.bottom, 32)
 
-            Button(action: onBack) {
-                Text("Назад")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white.opacity(0.7))
+                // Выбор группы
+                VStack(spacing: 16) {
+                    if viewModel.isLoading {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.2)
+                            Text("Загрузка групп...")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.vertical, 40)
+                    } else if viewModel.groups.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.title)
+                                .foregroundColor(.orange)
+                            Text("Группы не найдены")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.vertical, 40)
+                    } else {
+                        Menu {
+                            ForEach(viewModel.groups) { group in
+                                Button(action: { 
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        selectedGroup = group 
+                                    }
+                                }) {
+                                    Text(group.name)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedGroup == nil ? "person.crop.circle" : "checkmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(selectedGroup == nil ? .white.opacity(0.5) : .green)
+                                
+                                Text(selectedGroup?.name ?? "Нажмите для выбора")
+                                    .font(.body.weight(.medium))
+                                    .foregroundColor(selectedGroup == nil ? .white.opacity(0.5) : .white)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 18)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.white.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(
+                                                selectedGroup == nil ? Color.white.opacity(0.1) : Color.green.opacity(0.3),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                        }
+                        .padding(.horizontal, 24)
+                        
+                        // Количество групп
+                        Text("\(viewModel.groups.count) групп доступно")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3), value: animateContent)
+
+                Spacer()
+
+                // Кнопка завершения
+                VStack(spacing: 16) {
+                    Button(action: onFinish) {
+                        HStack(spacing: 10) {
+                            Text("Начать")
+                                .font(.headline.weight(.semibold))
+                            Image(systemName: "checkmark")
+                                .font(.subheadline.weight(.bold))
+                        }
+                        .foregroundColor(selectedGroup == nil ? .white.opacity(0.4) : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            Capsule()
+                                .fill(selectedGroup == nil ? Color.white.opacity(0.15) : Color.white)
+                                .shadow(color: selectedGroup == nil ? .clear : .white.opacity(0.2), radius: 15, x: 0, y: 8)
+                        )
+                    }
+                    .disabled(selectedGroup == nil)
+                    .padding(.horizontal, 24)
+                    
+                    Text("Шаг 2 из 2")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                .offset(y: animateContent ? 0 : 20)
+                .opacity(animateContent ? 1 : 0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: animateContent)
+                .padding(.bottom, 32)
             }
-            .padding(.top, 4)
-            .padding(.bottom, 24)
         }
-        .background(Color.black.ignoresSafeArea())
+        .onAppear {
+            animateContent = true
+        }
         .task {
             if let specialty = selectedSpecialty {
                 await viewModel.loadGroups(for: specialty)
