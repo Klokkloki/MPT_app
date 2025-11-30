@@ -1297,29 +1297,31 @@ private struct ResourceCollectionCard: View {
             Button(action: onToggleExpand) {
                 HStack(spacing: 14) {
                     // Иконка категории (приоритет iconName > categoryIcon)
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: collection.gradientColors?.compactMap { Color(hex: $0) } ?? [.purple, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 48)
-                        
-                        // Если есть iconName - показываем картинку из Assets
+                    Group {
+                        // Если есть iconName - показываем картинку из Assets (без обводки)
                         if let iconName = collection.iconName, !iconName.isEmpty,
                            let image = UIImage(named: iconName) {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 32, height: 32)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         } else {
-                            // Иначе показываем эмодзи
-                            Text(categoryIcon(for: collection.category))
-                                .font(.title2)
+                            // Градиентный фон + эмодзи (если нет картинки)
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: collection.gradientColors?.compactMap { Color(hex: $0) } ?? [.purple, .blue],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 48, height: 48)
+                                
+                                Text(categoryIcon(for: collection.category))
+                                    .font(.title2)
+                            }
                         }
                     }
                     
