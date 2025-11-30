@@ -9,6 +9,7 @@ struct NewsView: View {
     @State private var currentNewsIndex: Int = 0
     @State private var selectedCategory: AdCategory? = nil
     @State private var expandedAdId: UUID? = nil
+    @State private var expandedCollectionId: String? = nil  // Для подборок ресурсов
     @State private var showAllRecommendations = false  // Показать все рекомендации
     
     var body: some View {
@@ -20,6 +21,11 @@ struct NewsView: View {
                     VStack(spacing: 24) {
                         // Карусель новостей/фотографий
                         newsCarousel
+                        
+                        // Подборки ресурсов (закреплённые плашки)
+                        if !contentService.resourceCollections.isEmpty {
+                            resourceCollectionsSection
+                        }
                         
                         // Рекомендации (новый дизайн)
                         recommendationsSection
@@ -41,6 +47,43 @@ struct NewsView: View {
                 // Быстрая проверка и обновление контента при открытии
                 Task {
                     await contentService.checkAndUpdateIfNeeded()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Resource Collections Section (Подборки ресурсов)
+    
+    private var resourceCollectionsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Заголовок
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Подборки")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Полезные ресурсы по направлениям")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+            
+            // Карточки подборок
+            LazyVStack(spacing: 12) {
+                ForEach(contentService.resourceCollections, id: \.id) { collection in
+                    ResourceCollectionCard(
+                        collection: collection,
+                        isExpanded: expandedCollectionId == collection.id,
+                        onToggleExpand: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                expandedCollectionId = expandedCollectionId == collection.id ? nil : collection.id
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -1081,21 +1124,44 @@ private struct NewsCard: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                 } else {
-                    // Fallback
+                    // Fallback с инструкцией
                     ZStack {
                         LinearGradient(
                             colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.1)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white.opacity(0.4))
-                            Text(newsItem.imageName)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.4))
+                        VStack(spacing: 16) {
+                            Image(systemName: "photo.badge.exclamationmark")
+                                .font(.system(size: 44))
+                                .foregroundColor(.white.opacity(0.5))
+                            
+                            VStack(spacing: 8) {
+                                Text("Изображение не загружено")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                                
+                                Text("Попробуйте очистить кеш в настройках")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .multilineTextAlignment(.center)
+                            }
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "gear")
+                                    .font(.caption2)
+                                Text("Настройки → Кеш → Очистить")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.1))
+                            )
                         }
+                        .padding()
                     }
                 }
                 
@@ -1214,6 +1280,211 @@ private struct AdvertisementCard: View {
                         )
                 )
         )
+    }
+}
+
+// MARK: - Resource Collection Card (Карточка подборки ресурсов)
+
+private struct ResourceCollectionCard: View {
+    let collection: ResourceCollection
+    let isExpanded: Bool
+    let onToggleExpand: () -> Void
+    
+    @Environment(\.openURL) private var openURL
+    
+    private var cardColor: Color {
+        if let colors = collection.gradientColors, let first = colors.first {
+            return Color(hex: first) ?? .purple
+        }
+        return .purple
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Заголовок (всегда видна)
+            Button(action: onToggleExpand) {
+                HStack(spacing: 14) {
+                    // Иконка категории
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: collection.gradientColors?.compactMap { Color(hex: $0) } ?? [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 48, height: 48)
+                        
+                        Text(categoryIcon(for: collection.category))
+                            .font(.title2)
+                    }
+                    
+                    // Текст
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(collection.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                        
+                        if let subtitle = collection.subtitle {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.6))
+                                .lineLimit(1)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Количество ресурсов + стрелка
+                    HStack(spacing: 8) {
+                        Text("\(collection.resources.count)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.white.opacity(0.5))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.1))
+                            )
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+            
+            // Раскрытый контент со списком ресурсов
+            if isExpanded {
+                VStack(spacing: 0) {
+                    // Разделитель
+                    Rectangle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 1)
+                        .padding(.horizontal, 16)
+                    
+                    // Список ресурсов
+                    VStack(spacing: 0) {
+                        ForEach(Array(collection.resources.enumerated()), id: \.element.id) { index, resource in
+                            ResourceRow(resource: resource, openURL: openURL)
+                            
+                            // Разделитель между ресурсами (кроме последнего)
+                            if index < collection.resources.count - 1 {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.05))
+                                    .frame(height: 1)
+                                    .padding(.leading, 60)
+                                    .padding(.trailing, 16)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            cardColor.opacity(0.2),
+                            cardColor.opacity(0.1),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [cardColor.opacity(0.3), cardColor.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+    
+    private func categoryIcon(for category: String) -> String {
+        switch category {
+        case "security": return "🔐"
+        case "programming": return "💻"
+        case "law": return "⚖️"
+        case "design": return "🎨"
+        default: return "📚"
+        }
+    }
+}
+
+// MARK: - Resource Row (Строка ресурса в подборке)
+
+private struct ResourceRow: View {
+    let resource: Resource
+    let openURL: OpenURLAction
+    
+    var body: some View {
+        Button(action: {
+            if let url = URL(string: resource.url) {
+                openURL(url)
+            }
+        }) {
+            HStack(spacing: 12) {
+                // Иконка
+                Text(resource.icon ?? "🔗")
+                    .font(.title3)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.08))
+                    )
+                
+                // Информация
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(resource.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.white)
+                        
+                        if let subscribers = resource.subscribers, !subscribers.isEmpty {
+                            Text(subscribers)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.white.opacity(0.5))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.1))
+                                )
+                        }
+                    }
+                    
+                    if let description = resource.description {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                // Стрелка
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
     }
 }
 

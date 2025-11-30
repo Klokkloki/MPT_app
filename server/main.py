@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "2.0"
+CONTENT_VERSION = "3.0"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -481,12 +481,139 @@ async def get_content_news():
     
     return {"news": news}
 
+@app.get("/api/content/resource-collections")
+async def get_resource_collections():
+    """
+    Получить подборки ресурсов (закреплённые плашки с несколькими ссылками)
+    
+    Категории: programming | security | law | design | other
+    """
+    collections = [
+        # === ИНФОРМАЦИОННАЯ БЕЗОПАСНОСТЬ ===
+        {
+            "id": "security",
+            "title": "🔐 Информационная безопасность",
+            "subtitle": "Каналы по кибербезопасности и хакингу",
+            "category": "security",
+            "gradientColors": ["#FF6B6B", "#EE5A24"],
+            "isPinned": True,
+            "resources": [
+                {
+                    "id": "sec-1",
+                    "title": "Kali Linux",
+                    "description": "Главные ресурсы для хакера, инструменты, туториалы",
+                    "url": "https://t.me/linuxkalii",
+                    "icon": "🐧",
+                    "subscribers": "52.9K"
+                },
+                {
+                    "id": "sec-2", 
+                    "title": "InfoSec Community",
+                    "description": "Один из ведущих каналов по информационной безопасности",
+                    "url": "https://t.me/infosec_tg",
+                    "icon": "🛡️",
+                    "subscribers": "10.3K"
+                },
+                {
+                    "id": "sec-3",
+                    "title": "IT Архив",
+                    "description": "Парсим свежие фриланс заказы каждый день",
+                    "url": "https://t.me/bkstorage",
+                    "icon": "📁",
+                    "subscribers": "6.2K"
+                }
+            ]
+        },
+        
+        # === ПРОГРАММИРОВАНИЕ ===
+        {
+            "id": "programming",
+            "title": "💻 Программирование",
+            "subtitle": "Лучшие каналы для разработчиков",
+            "category": "programming",
+            "gradientColors": ["#6C5CE7", "#A29BFE"],
+            "isPinned": True,
+            "resources": [
+                {
+                    "id": "prog-1",
+                    "title": "PYTHON:TODAY",
+                    "description": "Python скрипты, нейросети, боты, автоматизация. Всё бесплатно!",
+                    "url": "https://t.me/python2day",
+                    "icon": "🐍",
+                    "subscribers": "63.5K"
+                },
+                {
+                    "id": "prog-2",
+                    "title": "Python Developer",
+                    "description": "Авторский канал действующего Python-разработчика",
+                    "url": "https://t.me/python_tg",
+                    "icon": "👨‍💻",
+                    "subscribers": "22K"
+                },
+                {
+                    "id": "prog-3",
+                    "title": "Хауди Хо",
+                    "description": "YouTube канал о программировании простым языком",
+                    "url": "https://youtube.com/@HowdyHo",
+                    "icon": "🎬",
+                    "subscribers": "1M+"
+                },
+                {
+                    "id": "prog-4",
+                    "title": "Stepik",
+                    "description": "Бесплатные курсы по программированию от университетов",
+                    "url": "https://stepik.org",
+                    "icon": "📚",
+                    "subscribers": ""
+                }
+            ]
+        },
+        
+        # === ЮРИСПРУДЕНЦИЯ ===
+        {
+            "id": "law",
+            "title": "⚖️ Юриспруденция",
+            "subtitle": "Полезные ресурсы для будущих юристов",
+            "category": "law",
+            "gradientColors": ["#00B894", "#55EFC4"],
+            "isPinned": True,
+            "resources": [
+                {
+                    "id": "law-1",
+                    "title": "КонсультантПлюс",
+                    "description": "Правовые базы, законодательство, судебная практика",
+                    "url": "https://www.consultant.ru",
+                    "icon": "📖",
+                    "subscribers": ""
+                },
+                {
+                    "id": "law-2",
+                    "title": "Гарант",
+                    "description": "Информационно-правовой портал",
+                    "url": "https://www.garant.ru",
+                    "icon": "⚖️",
+                    "subscribers": ""
+                },
+                {
+                    "id": "law-3",
+                    "title": "Право.ru",
+                    "description": "Новости права, аналитика, обзоры законодательства",
+                    "url": "https://pravo.ru",
+                    "icon": "📰",
+                    "subscribers": ""
+                }
+            ]
+        }
+    ]
+    
+    return {"collections": collections}
+
 @app.get("/api/content/version")
 async def get_content_version():
     """Проверка версии контента"""
     return {
         "version": CONTENT_VERSION,
-        "timestamp": "2024-11-29T10:00:00Z"
+        "timestamp": "2024-11-30T12:00:00Z"
     }
 
 

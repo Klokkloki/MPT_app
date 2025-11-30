@@ -490,3 +490,43 @@ struct NewsItem: Identifiable, Hashable, Codable {
         self.description = description
     }
 }
+
+// MARK: - Resource Collections (Подборки ресурсов)
+
+struct ResourceCollection: Identifiable, Hashable, Codable {
+    let id: String
+    let title: String
+    let subtitle: String?
+    let category: String
+    let gradientColors: [String]?
+    let isPinned: Bool
+    let resources: [Resource]
+    
+    init(id: String, title: String, subtitle: String? = nil, category: String, gradientColors: [String]? = nil, isPinned: Bool = false, resources: [Resource] = []) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.category = category
+        self.gradientColors = gradientColors
+        self.isPinned = isPinned
+        self.resources = resources
+    }
+}
+
+struct Resource: Identifiable, Hashable, Codable {
+    let id: String
+    let title: String
+    let description: String?
+    let url: String
+    let icon: String?
+    let subscribers: String?
+    
+    init(id: String, title: String, description: String? = nil, url: String, icon: String? = nil, subscribers: String? = nil) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.url = url
+        self.icon = icon
+        self.subscribers = subscribers
+    }
+}

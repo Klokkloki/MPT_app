@@ -10,6 +10,7 @@ final class ContentUpdateService: ObservableObject {
     
     @Published var advertisements: [Advertisement] = []
     @Published var newsItems: [NewsItem] = []
+    @Published var resourceCollections: [ResourceCollection] = []
     @Published var isLoading = false
     @Published var lastUpdateTime: Date?
     
@@ -19,6 +20,7 @@ final class ContentUpdateService: ObservableObject {
     // Ключи для кеширования
     private let adsKey = "cached_advertisements"
     private let newsKey = "cached_news_items"
+    private let collectionsKey = "cached_resource_collections"
     private let updateTimeKey = "last_content_update"
     private var updateTimer: Timer?
     private var pendingServerVersion: String?
@@ -64,6 +66,10 @@ final class ContentUpdateService: ObservableObject {
             let news = try await fetchNews()
             newsItems = news
             saveNews(news)
+            
+            let collections = try await fetchResourceCollections()
+            resourceCollections = collections
+            saveResourceCollections(collections)
             
             let version: String
             if let pending = pendingServerVersion {
@@ -137,6 +143,34 @@ final class ContentUpdateService: ObservableObject {
         } ?? []
     }
     
+    private func fetchResourceCollections() async throws -> [ResourceCollection] {
+        let baseURL = await NetworkService.shared.baseURL
+        let url = URL(string: "\(baseURL)/api/content/resource-collections")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let response = try JSONDecoder().decode([String: [ResourceCollectionAPI]].self, from: data)
+        
+        return response["collections"]?.map { apiCollection in
+            ResourceCollection(
+                id: apiCollection.id,
+                title: apiCollection.title,
+                subtitle: apiCollection.subtitle,
+                category: apiCollection.category,
+                gradientColors: apiCollection.gradientColors,
+                isPinned: apiCollection.isPinned ?? false,
+                resources: apiCollection.resources.map { apiResource in
+                    Resource(
+                        id: apiResource.id,
+                        title: apiResource.title,
+                        description: apiResource.description,
+                        url: apiResource.url,
+                        icon: apiResource.icon,
+                        subscribers: apiResource.subscribers
+                    )
+                }
+            )
+        } ?? []
+    }
+    
     // MARK: - API Models
     
     private struct AdvertisementAPI: Codable {
@@ -159,6 +193,25 @@ final class ContentUpdateService: ObservableObject {
         let imageName: String
         let title: String?
         let description: String?
+    }
+    
+    private struct ResourceCollectionAPI: Codable {
+        let id: String
+        let title: String
+        let subtitle: String?
+        let category: String
+        let gradientColors: [String]?
+        let isPinned: Bool?
+        let resources: [ResourceAPI]
+    }
+    
+    private struct ResourceAPI: Codable {
+        let id: String
+        let title: String
+        let description: String?
+        let url: String
+        let icon: String?
+        let subscribers: String?
     }
     
     /// Проверить версию контента на сервере (быстрая проверка)
@@ -230,7 +283,6 @@ final class ContentUpdateService: ObservableObject {
            let ads = try? JSONDecoder().decode([Advertisement].self, from: data) {
             advertisements = ads
         } else {
-            // Фолбэк на дефолтные значения
             advertisements = []
         }
         
@@ -239,11 +291,20 @@ final class ContentUpdateService: ObservableObject {
            let news = try? JSONDecoder().decode([NewsItem].self, from: data) {
             newsItems = news
         } else {
+            // Дефолтные новости (фолбэк)
             newsItems = [
-                NewsItem(imageName: "00.10.2024", title: "Экскурсия", description: "Студенты МПТ на экскурсии"),
-                NewsItem(imageName: "head", title: "Новости колледжа", description: "Следите за событиями"),
-                NewsItem(imageName: "prevyu-studenty-mpt-na-obshherossijskom-turnire-po-robototehnike-24-26.09.2025", title: "Робототехника", description: "Студенты МПТ на всероссийском турнире")
+                NewsItem(imageName: "news_0", title: "Экскурсия", description: "Студенты МПТ на экскурсии"),
+                NewsItem(imageName: "news_1", title: "Новости колледжа", description: "Следите за событиями"),
+                NewsItem(imageName: "news_4", title: "Робототехника", description: "Студенты МПТ на всероссийском турнире")
             ]
+        }
+        
+        // Загружаем подборки ресурсов из кеша
+        if let data = storage.data(forKey: collectionsKey),
+           let collections = try? JSONDecoder().decode([ResourceCollection].self, from: data) {
+            resourceCollections = collections
+        } else {
+            resourceCollections = []
         }
         
         // Загружаем время последнего обновления
@@ -261,6 +322,12 @@ final class ContentUpdateService: ObservableObject {
     private func saveNews(_ news: [NewsItem]) {
         if let data = try? JSONEncoder().encode(news) {
             storage.set(data, forKey: newsKey)
+        }
+    }
+    
+    private func saveResourceCollections(_ collections: [ResourceCollection]) {
+        if let data = try? JSONEncoder().encode(collections) {
+            storage.set(data, forKey: collectionsKey)
         }
     }
 }

@@ -57,6 +57,12 @@ struct OnboardingFlowView: View {
                         storedSpecialtyName = specialty.name
                         storedGroupId = group.id
                         storedGroupName = group.name
+                        
+                        // Сразу загружаем расписание для выбранной группы (чтобы было в кеше)
+                        Task {
+                            await viewModel.loadSchedule(for: group)
+                            await viewModel.loadReplacements(for: group.name)
+                        }
                     },
                     onBack: {
                         withAnimation(.spring()) {
