@@ -94,34 +94,26 @@ struct NewsView: View {
     private var newsCarousel: some View {
         VStack(spacing: 12) {
             if !contentService.newsItems.isEmpty {
-                // Используем ScrollView с paging для плавной прокрутки
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 0) {
-                        ForEach(Array(contentService.newsItems.enumerated()), id: \.element.id) { index, item in
-                            NewsCard(newsItem: item)
-                                .containerRelativeFrame(.horizontal)
-                                .scrollTransition { content, phase in
-                                    content
-                                        .opacity(phase.isIdentity ? 1 : 0.8)
-                                        .scaleEffect(phase.isIdentity ? 1 : 0.95)
-                                }
-                        }
+                // TabView для правильного отслеживания индекса
+                TabView(selection: $currentNewsIndex) {
+                    ForEach(Array(contentService.newsItems.enumerated()), id: \.element.id) { index, item in
+                        NewsCard(newsItem: item)
+                            .tag(index)
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollTargetBehavior(.paging)
+                .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 280)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 
-                // Индикаторы страниц
+                // Индикаторы страниц (анимированные)
                 HStack(spacing: 8) {
                     ForEach(0..<contentService.newsItems.count, id: \.self) { index in
                         Capsule()
                             .fill(Color.white.opacity(index == currentNewsIndex ? 1 : 0.3))
                             .frame(width: index == currentNewsIndex ? 20 : 8, height: 8)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentNewsIndex)
                     }
                 }
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentNewsIndex)
                 .padding(.top, 4)
             } else {
                 // Плейсхолдер при загрузке новостей
@@ -1304,7 +1296,7 @@ private struct ResourceCollectionCard: View {
             // Заголовок (всегда видна)
             Button(action: onToggleExpand) {
                 HStack(spacing: 14) {
-                    // Иконка категории
+                    // Иконка категории (приоритет iconName > categoryIcon)
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(
@@ -1316,8 +1308,19 @@ private struct ResourceCollectionCard: View {
                             )
                             .frame(width: 48, height: 48)
                         
-                        Text(categoryIcon(for: collection.category))
-                            .font(.title2)
+                        // Если есть iconName - показываем картинку из Assets
+                        if let iconName = collection.iconName, !iconName.isEmpty,
+                           let image = UIImage(named: iconName) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            // Иначе показываем эмодзи
+                            Text(categoryIcon(for: collection.category))
+                                .font(.title2)
+                        }
                     }
                     
                     // Текст

@@ -791,84 +791,58 @@ private struct ReplacementRow: View {
     }
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Номер пары (как в LessonCard)
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(replacement.isCancelled ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
-                    .frame(width: 38, height: 38)
+        VStack(alignment: .leading, spacing: 8) {
+            // Верхняя строка: номер пары и время
+            HStack {
+                // Номер пары
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(replacement.isCancelled ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
+                        .frame(width: 32, height: 32)
 
-                Text("\(replacement.pairNumber)")
-                    .font(.callout.weight(.bold))
-                    .foregroundColor(replacement.isCancelled ? .orange : .green)
+                    Text("\(replacement.pairNumber)")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(replacement.isCancelled ? .orange : .green)
+                }
+                
+                Spacer()
+                
+                // Время справа
+                Text("\(lessonTime.start) - \(lessonTime.end)")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.white.opacity(0.6))
             }
             
-            VStack(alignment: .leading, spacing: 4) {
-                // Если это добавление — показываем только новый предмет
-                if isAddition {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.green)
-                        Text(replacement.newSubject)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(3)
-                    }
-                } else if replacement.isCancelled {
-                    // Отмена
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(replacement.originalSubject)
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.5))
-                            .strikethrough()
-                            .lineLimit(2)
-                        HStack(spacing: 6) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.orange)
-                            Text(replacement.newSubject)
-                                .font(.caption.weight(.medium))
-                                .foregroundColor(.orange)
-                                .lineLimit(2)
-                        }
-                    }
-                } else {
-                    // Обычная замена
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(replacement.originalSubject)
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.4))
-                            .strikethrough()
-                            .lineLimit(2)
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.right.circle.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.green.opacity(0.8))
-                            Text(replacement.newSubject)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundColor(.white)
-                                .lineLimit(2)
-                        }
-                    }
+            // Основной контент замены
+            VStack(alignment: .leading, spacing: 6) {
+                // Что заменяют (полный текст)
+                if !isAddition {
+                    Text(replacement.originalSubject)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.5))
+                        .strikethrough(replacement.isCancelled, color: .orange.opacity(0.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                // На что заменяют
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: replacement.isCancelled ? "xmark.circle.fill" : (isAddition ? "plus.circle.fill" : "arrow.right.circle.fill"))
+                        .font(.system(size: 12))
+                        .foregroundColor(replacement.isCancelled ? .orange : .green)
+                        .padding(.top, 2)
+                    
+                    Text(replacement.newSubject)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(replacement.isCancelled ? .orange : .white)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            
-            Spacer()
-            
-            // Время справа
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(lessonTime.start)
-                    .font(.footnote.weight(.medium))
-                Text(lessonTime.end)
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.5))
-            }
-            .foregroundColor(.white)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.03))
+        )
     }
 }
 
@@ -1070,10 +1044,8 @@ struct WeekView: View {
                                     
                                     Spacer()
                                     
-                                    // Индикатор типа недели
-                                    if let weekInfo = viewModel.weekInfo {
-                                        WeekTypeBadge(weekType: weekInfo.weekType)
-                                    }
+                                    // Индикатор типа недели (автоматически определяется)
+                                    WeekTypeBadge(weekType: appSettings.currentWeekType)
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 20)
@@ -1092,7 +1064,7 @@ struct WeekView: View {
                                             day: daySchedule,
                                             dayNotes: dayNotes,
                                             homeworks: homeworks,
-                                            weekType: viewModel.weekInfo?.weekType ?? .numerator,
+                                            weekType: appSettings.currentWeekType,
                                             onLessonTapNumerator: { lesson in
                                                 selectedLessonForHomework = lesson
                                                 selectedLessonType = .numerator
@@ -1205,7 +1177,7 @@ struct WeekView: View {
                                                     homeworkDenominator: lesson.hasDenominator ? homeworks[lesson.denominatorId] : nil,
                                                     note: nil,
                                                     showLocation: false,
-                                                    weekType: viewModel.weekInfo?.weekType ?? .numerator,
+                                                    weekType: appSettings.currentWeekType,
                                                     onTapNumerator: {
                                                         selectedLessonForHomework = lesson
                                                         selectedLessonType = .numerator

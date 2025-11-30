@@ -318,7 +318,7 @@ async def get_all_teachers():
 #   - Автоматически каждые 5 минут в фоне
 
 # Версия контента (ОБЯЗАТЕЛЬНО увеличивайте при любом изменении!)
-CONTENT_VERSION = "4.0"
+CONTENT_VERSION = "4.1"
 
 @app.get("/api/content/advertisements")
 async def get_content_advertisements():
@@ -502,7 +502,7 @@ async def get_resource_collections():
             "category": "security",
             "gradientColors": ["#FF6B6B", "#EE5A24"],
             "isPinned": True,
-            "iconName": None,  # Можно указать имя фото из Assets: "security_icon"
+            "iconName": "security_icon",  # Можно указать имя фото из Assets: "security_icon"
             "resources": [
                 {
                     "id": "sec-1",
@@ -511,7 +511,7 @@ async def get_resource_collections():
                     "url": "https://t.me/linuxkalii",
                     "icon": "🐧",
                     "iconName": None,  # Можно указать: "kali_logo"
-                    "subscribers": "52.9K"
+                    "subscribers": "52.9K+"
                 },
                 {
                     "id": "sec-2", 
@@ -520,7 +520,7 @@ async def get_resource_collections():
                     "url": "https://t.me/infosec_tg",
                     "icon": "🛡️",
                     "iconName": None,
-                    "subscribers": "10.3K"
+                    "subscribers": "10.3K+"
                 },
                 {
                     "id": "sec-3",
@@ -529,7 +529,7 @@ async def get_resource_collections():
                     "url": "https://t.me/bkstorage",
                     "icon": "📁",
                     "iconName": None,
-                    "subscribers": "6.2K"
+                    "subscribers": "6.2K+"
                 }
             ]
         },
@@ -551,7 +551,7 @@ async def get_resource_collections():
                     "url": "https://t.me/python2day",
                     "icon": "🐍",
                     "iconName": None,
-                    "subscribers": "63.5K"
+                    "subscribers": "63.5K+"
                 },
                 {
                     "id": "prog-2",
@@ -560,7 +560,7 @@ async def get_resource_collections():
                     "url": "https://t.me/python_tg",
                     "icon": "👨‍💻",
                     "iconName": None,
-                    "subscribers": "22K"
+                    "subscribers": "22K+"
                 },
                 {
                     "id": "prog-3",
@@ -569,7 +569,7 @@ async def get_resource_collections():
                     "url": "https://youtube.com/@HowdyHo",
                     "icon": "🎬",
                     "iconName": None,
-                    "subscribers": "1M+"
+                    "subscribers": "1M"
                 },
                 {
                     "id": "prog-4",
@@ -578,7 +578,7 @@ async def get_resource_collections():
                     "url": "https://stepik.org",
                     "icon": "📚",
                     "iconName": None,
-                    "subscribers": ""
+                    "subscribers": "100K+"
                 }
             ]
         },
@@ -600,7 +600,7 @@ async def get_resource_collections():
                     "url": "https://www.consultant.ru",
                     "icon": "📖",
                     "iconName": None,
-                    "subscribers": ""
+                    "subscribers": "100K+"
                 },
                 {
                     "id": "law-2",
@@ -609,7 +609,7 @@ async def get_resource_collections():
                     "url": "https://www.garant.ru",
                     "icon": "⚖️",
                     "iconName": None,
-                    "subscribers": ""
+                    "subscribers": "100K+"
                 },
                 {
                     "id": "law-3",
@@ -618,7 +618,7 @@ async def get_resource_collections():
                     "url": "https://pravo.ru",
                     "icon": "📰",
                     "iconName": None,
-                    "subscribers": ""
+                    "subscribers": "100K+"
                 }
             ]
         }
