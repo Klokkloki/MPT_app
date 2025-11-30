@@ -385,36 +385,92 @@ enum VoteType: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Advertisement (Реклама)
+// MARK: - Advertisement (Реклама/Рекомендации)
 
 struct Advertisement: Identifiable, Hashable, Codable {
     let id: UUID
     let title: String
-    let description: String
-    let imageName: String? // Для будущего использования
-    let url: String?
+    let subtitle: String?        // Короткое описание (1 строка)
+    let description: String      // Полное описание (для раскрытой карточки)
+    let iconUrl: String?         // URL иконки с сервера
+    let iconName: String?        // Имя иконки в Assets (fallback)
+    let iconEmoji: String?       // Эмодзи как иконка (fallback)
+    let url: String?             // Ссылка для перехода
     let category: AdCategory
+    let tags: [String]?          // Теги: "бесплатно", "скидка", "новое"
+    let gradientColors: [String]? // Цвета градиента для карточки
+    let isPinned: Bool           // Закреплённая реклама (показывается первой)
     
-    init(id: UUID = UUID(), title: String, description: String, imageName: String? = nil, url: String? = nil, category: AdCategory) {
+    init(
+        id: UUID = UUID(),
+        title: String,
+        subtitle: String? = nil,
+        description: String,
+        iconUrl: String? = nil,
+        iconName: String? = nil,
+        iconEmoji: String? = nil,
+        url: String? = nil,
+        category: AdCategory,
+        tags: [String]? = nil,
+        gradientColors: [String]? = nil,
+        isPinned: Bool = false
+    ) {
         self.id = id
         self.title = title
+        self.subtitle = subtitle
         self.description = description
-        self.imageName = imageName
+        self.iconUrl = iconUrl
+        self.iconName = iconName
+        self.iconEmoji = iconEmoji
         self.url = url
         self.category = category
+        self.tags = tags
+        self.gradientColors = gradientColors
+        self.isPinned = isPinned
     }
+    
+    // Для обратной совместимости
+    var imageName: String? { iconName }
 }
 
-enum AdCategory: String, Codable {
+enum AdCategory: String, Codable, CaseIterable {
     case course = "course"
     case onlineSchool = "onlineSchool"
+    case telegram = "telegram"
+    case youtube = "youtube"
     case service = "service"
+    case event = "event"
     
     var displayName: String {
         switch self {
         case .course: return "Курсы"
         case .onlineSchool: return "Онлайн-школы"
+        case .telegram: return "Telegram"
+        case .youtube: return "YouTube"
         case .service: return "Сервисы"
+        case .event: return "События"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .course: return "book.fill"
+        case .onlineSchool: return "graduationcap.fill"
+        case .telegram: return "paperplane.fill"
+        case .youtube: return "play.rectangle.fill"
+        case .service: return "wrench.and.screwdriver.fill"
+        case .event: return "calendar.badge.clock"
+        }
+    }
+    
+    var defaultColor: Color {
+        switch self {
+        case .course: return .blue
+        case .onlineSchool: return .purple
+        case .telegram: return .cyan
+        case .youtube: return .red
+        case .service: return .orange
+        case .event: return .green
         }
     }
 }

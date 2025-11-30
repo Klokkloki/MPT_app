@@ -107,10 +107,16 @@ final class ContentUpdateService: ObservableObject {
             Advertisement(
                 id: UUID(uuidString: apiAd.id) ?? UUID(),
                 title: apiAd.title,
+                subtitle: apiAd.subtitle,
                 description: apiAd.description,
-                imageName: apiAd.imageName,
+                iconUrl: apiAd.iconUrl,
+                iconName: apiAd.iconName,
+                iconEmoji: apiAd.iconEmoji,
                 url: apiAd.url,
-                category: AdCategory(rawValue: apiAd.category) ?? .course
+                category: AdCategory(rawValue: apiAd.category) ?? .course,
+                tags: apiAd.tags,
+                gradientColors: apiAd.gradientColors,
+                isPinned: apiAd.isPinned ?? false
             )
         } ?? []
     }
@@ -136,10 +142,16 @@ final class ContentUpdateService: ObservableObject {
     private struct AdvertisementAPI: Codable {
         let id: String
         let title: String
+        let subtitle: String?
         let description: String
-        let imageName: String?
+        let iconUrl: String?
+        let iconName: String?
+        let iconEmoji: String?
         let url: String?
         let category: String
+        let tags: [String]?
+        let gradientColors: [String]?
+        let isPinned: Bool?
     }
     
     private struct NewsItemAPI: Codable {

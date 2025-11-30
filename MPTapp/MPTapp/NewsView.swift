@@ -7,7 +7,8 @@ struct NewsView: View {
     @StateObject private var contentService = ContentUpdateService.shared
     @State private var showAllTeachers = false
     @State private var currentNewsIndex: Int = 0
-    @State private var currentAdIndex: Int = 0
+    @State private var selectedCategory: AdCategory? = nil
+    @State private var expandedAdId: UUID? = nil
     
     var body: some View {
         NavigationStack {
@@ -15,12 +16,12 @@ struct NewsView: View {
                 Color.black.ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         // Карусель новостей/фотографий
                         newsCarousel
                         
-                        // Реклама
-                        advertisementsSection
+                        // Рекомендации (новый дизайн)
+                        recommendationsSection
                         
                         // Рейтинг преподавателей
                         ratingSection
@@ -87,30 +88,109 @@ struct NewsView: View {
         }
     }
     
-    // MARK: - Advertisements Section
+    // MARK: - Recommendations Section (Рекомендации)
     
-    private var advertisementsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Партнёры")
-                .font(.headline.weight(.semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 4)
-            
-            TabView(selection: $currentAdIndex) {
-                ForEach(0..<contentService.advertisements.count, id: \.self) { index in
-                    AdvertisementCard(advertisement: contentService.advertisements[index])
-                        .tag(index)
+    private var recommendationsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Заголовок секции
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Рекомендации")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Полезные ресурсы для студентов")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.5))
                 }
+                
+                Spacer()
+                
+                // Количество рекомендаций
+                Text("\(filteredAds.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 120)
-            .onReceive(Timer.publish(every: 4.0, on: .main, in: .common).autoconnect()) { _ in
-                guard !contentService.advertisements.isEmpty else { return }
-                withAnimation(.spring(response: 0.8, dampingFraction: 0.8)) {
-                    currentAdIndex = (currentAdIndex + 1) % contentService.advertisements.count
+            .padding(.horizontal, 4)
+            
+            // Фильтр по категориям
+            categoryFilter
+            
+            // Список рекомендаций
+            LazyVStack(spacing: 12) {
+                ForEach(filteredAds) { ad in
+                    RecommendationCard(
+                        advertisement: ad,
+                        isExpanded: expandedAdId == ad.id,
+                        onToggleExpand: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                if expandedAdId == ad.id {
+                                    expandedAdId = nil
+                                } else {
+                                    expandedAdId = ad.id
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
+    }
+    
+    // Фильтрованные рекламы
+    private var filteredAds: [Advertisement] {
+        let ads = contentService.advertisements
+        if let category = selectedCategory {
+            return ads.filter { $0.category == category }
+        }
+        // Сначала закреплённые, потом остальные
+        return ads.sorted { $0.isPinned && !$1.isPinned }
+    }
+    
+    // Фильтр категорий
+    private var categoryFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // Кнопка "Все"
+                CategoryFilterButton(
+                    title: "Все",
+                    icon: "square.grid.2x2.fill",
+                    isSelected: selectedCategory == nil,
+                    color: .white
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        selectedCategory = nil
+                    }
+                }
+                
+                // Кнопки категорий (только те, что есть в рекламе)
+                ForEach(availableCategories, id: \.self) { category in
+                    CategoryFilterButton(
+                        title: category.displayName,
+                        icon: category.icon,
+                        isSelected: selectedCategory == category,
+                        color: category.defaultColor
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedCategory = category
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+    
+    // Доступные категории (только те, что есть в рекламе)
+    private var availableCategories: [AdCategory] {
+        let categories = Set(contentService.advertisements.map { $0.category })
+        return AdCategory.allCases.filter { categories.contains($0) }
     }
     
     // MARK: - Rating Section
@@ -581,7 +661,268 @@ private struct TeacherRow: View {
     }
 }
 
-// MARK: - Advertisement Card
+// MARK: - Category Filter Button
+
+private struct CategoryFilterButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                
+                Text(title)
+                    .font(.caption.weight(.medium))
+            }
+            .foregroundColor(isSelected ? .white : .white.opacity(0.6))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? color.opacity(0.3) : Color.white.opacity(0.08))
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(isSelected ? color.opacity(0.5) : Color.clear, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Recommendation Card (Новая карточка рекомендации)
+
+private struct RecommendationCard: View {
+    let advertisement: Advertisement
+    let isExpanded: Bool
+    let onToggleExpand: () -> Void
+    
+    @Environment(\.openURL) private var openURL
+    
+    // Цвет карточки
+    private var cardColor: Color {
+        if let colors = advertisement.gradientColors, let first = colors.first {
+            return Color(hex: first) ?? advertisement.category.defaultColor
+        }
+        return advertisement.category.defaultColor
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Основная часть карточки (всегда видна)
+            mainContent
+            
+            // Раскрывающаяся часть
+            if isExpanded {
+                expandedContent
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            cardColor.opacity(0.25),
+                            cardColor.opacity(0.1),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [cardColor.opacity(0.4), cardColor.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+    
+    // Основной контент карточки
+    private var mainContent: some View {
+        Button(action: onToggleExpand) {
+            HStack(spacing: 14) {
+                // Иконка
+                iconView
+                
+                // Текст
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(advertisement.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        
+                        // Теги
+                        if let tags = advertisement.tags, !tags.isEmpty {
+                            ForEach(tags.prefix(2), id: \.self) { tag in
+                                Text(tag)
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule()
+                                            .fill(tagColor(for: tag))
+                                    )
+                            }
+                        }
+                    }
+                    
+                    // Подзаголовок или краткое описание
+                    Text(advertisement.subtitle ?? advertisement.description)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(isExpanded ? 10 : 1)
+                }
+                
+                Spacer()
+                
+                // Стрелка раскрытия
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.4))
+                    .rotationEffect(.degrees(isExpanded ? 0 : 0))
+            }
+            .padding(16)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // Раскрытый контент
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Разделитель
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+            
+            // Полное описание
+            Text(advertisement.description)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.8))
+                .lineSpacing(4)
+                .padding(.horizontal, 16)
+            
+            // Категория
+            HStack(spacing: 6) {
+                Image(systemName: advertisement.category.icon)
+                    .font(.system(size: 11))
+                Text(advertisement.category.displayName)
+                    .font(.caption)
+            }
+            .foregroundColor(cardColor)
+            .padding(.horizontal, 16)
+            
+            // Кнопка перехода
+            if let urlString = advertisement.url, let url = URL(string: urlString) {
+                Button(action: { openURL(url) }) {
+                    HStack {
+                        Text("Перейти")
+                            .font(.subheadline.weight(.semibold))
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [cardColor, cardColor.opacity(0.7)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+            }
+            
+            Spacer().frame(height: 4)
+        }
+        .padding(.bottom, 12)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+    
+    // Иконка
+    @ViewBuilder
+    private var iconView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [cardColor.opacity(0.6), cardColor.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 48, height: 48)
+            
+            // Приоритет: иконка из Assets > эмодзи > системная иконка
+            if let iconName = advertisement.iconName, let image = UIImage(named: iconName) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+            } else if let emoji = advertisement.iconEmoji {
+                Text(emoji)
+                    .font(.system(size: 24))
+            } else {
+                Image(systemName: advertisement.category.icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+    }
+    
+    // Цвет тега
+    private func tagColor(for tag: String) -> Color {
+        let lowercased = tag.lowercased()
+        if lowercased.contains("бесплатно") || lowercased.contains("free") {
+            return .green
+        } else if lowercased.contains("скидка") || lowercased.contains("sale") {
+            return .orange
+        } else if lowercased.contains("новое") || lowercased.contains("new") {
+            return .blue
+        } else if lowercased.contains("топ") || lowercased.contains("hot") {
+            return .red
+        }
+        return .purple
+    }
+}
+
+// MARK: - Color Extension for Hex
+
+extension Color {
+    init?(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        
+        var rgb: UInt64 = 0
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
+        
+        let r = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let g = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let b = Double(rgb & 0x0000FF) / 255.0
+        
+        self.init(red: r, green: g, blue: b)
+    }
+}
 
 // MARK: - News Card (Карточка новости/фотографии)
 
