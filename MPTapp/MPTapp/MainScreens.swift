@@ -18,6 +18,7 @@ struct TodayView: View {
     @State private var selectedLessonType: LessonType = .numerator
     @State private var currentBannerIndex: Int = 0
     @State private var selectedDayOffset: Int = 0  // 0 = сегодня, 1 = завтра, 2 = послезавтра
+    @State private var isScrollingVertically: Bool = false  // Отслеживание вертикальной прокрутки
     
     // Рекламные баннеры (загружаются из папки news)
     private let banners: [NewsItem] = [
@@ -77,9 +78,31 @@ struct TodayView: View {
                             .padding(.bottom, 24)
                         }
                         .tag(offset)
+                        .gesture(
+                            DragGesture(minimumDistance: 10)
+                                .onChanged { value in
+                                    // Определяем направление свайпа
+                                    let horizontalMovement = abs(value.translation.width)
+                                    let verticalMovement = abs(value.translation.height)
+                                    
+                                    // Если вертикальное движение больше - блокируем горизонтальный свайп
+                                    if verticalMovement > horizontalMovement {
+                                        isScrollingVertically = true
+                                    } else if horizontalMovement > verticalMovement {
+                                        isScrollingVertically = false
+                                    }
+                                }
+                                .onEnded { _ in
+                                    // Сбрасываем флаг через небольшую задержку
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                        isScrollingVertically = false
+                                    }
+                                }
+                        )
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .allowsHitTesting(!isScrollingVertically)  // Блокируем TabView при вертикальной прокрутке
             }
             .background(Color.black.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
@@ -89,7 +112,7 @@ struct TodayView: View {
                         Text(group.name)
                             .font(.headline.weight(.semibold))
                             .foregroundColor(.white)
-                        Text("МПТ")
+                        Text("МПТ от Джони")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.6))
                     }

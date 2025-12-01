@@ -266,22 +266,17 @@ class ScheduleViewModel: ObservableObject {
             return
         }
         
-        // Сначала загружаем из кеша
-        if let cached = StorageService.shared.loadReplacements(for: group.id) {
-            replacements = cached
-        }
-        
+        // Замены НЕ кешируются - загружаются только с сервера
         isLoadingReplacements = true
         
         do {
             let apiReplacements = try await NetworkService.shared.fetchReplacements(group: group.name)
             let newReplacements = apiReplacements.toReplacementsResponse()
             replacements = newReplacements
-            // Сохраняем в кеш
-            StorageService.shared.saveReplacements(newReplacements, for: group.id)
+            // НЕ сохраняем в кеш - замены должны быть всегда актуальными
         } catch {
-            // Не показываем ошибку — замены могут отсутствовать или использовать кеш
-            // Если кеш есть, он уже загружен выше
+            // Если нет интернета - замены не показываем
+            replacements = nil
         }
         
         isLoadingReplacements = false
