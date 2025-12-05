@@ -482,12 +482,14 @@ struct NewsItem: Identifiable, Hashable, Codable {
     let imageName: String  // Имя файла в Bundle (например, "00.10.2024")
     let title: String?     // Опциональный заголовок
     let description: String? // Опциональное описание
+    let url: String?       // URL для перехода при клике на баннер
     
-    init(id: UUID = UUID(), imageName: String, title: String? = nil, description: String? = nil) {
+    init(id: UUID = UUID(), imageName: String, title: String? = nil, description: String? = nil, url: String? = nil) {
         self.id = id
         self.imageName = imageName
         self.title = title
         self.description = description
+        self.url = url
     }
 }
 

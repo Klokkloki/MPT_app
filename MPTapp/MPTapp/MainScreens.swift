@@ -22,8 +22,9 @@ struct TodayView: View {
     
     // Рекламные баннеры (загружаются из папки news)
     private let banners: [NewsItem] = [
-        NewsItem(imageName: "GeekMain", title: nil, description: nil)
-        // Добавьте больше баннеров здесь, просто добавьте новые NewsItem
+        NewsItem(imageName: "GeekMain", title: nil, description: nil, url: "https://gb.ru"),
+        NewsItem(imageName: "300x250", title: nil, description: nil, url: "https://go.avred.online/c37b1bd3cc6140b0?erid=2VfnxxQa3a9")
+        // Добавьте больше баннеров здесь, просто добавьте новые NewsItem с URL
     ]
     
     // Даты для свайпа (сегодня, завтра, послезавтра)
@@ -57,6 +58,12 @@ struct TodayView: View {
                     // Индикаторы дней (сегодня, завтра, послезавтра)
                     daySelector
                     
+                    // Разделитель под кнопками
+                    Rectangle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 1)
+                        .padding(.top, -8)
+                    
                     // Заголовок расписания + локация (статичный)
                     scheduleHeader
                 }
@@ -71,8 +78,8 @@ struct TodayView: View {
                             VStack(spacing: 16) {
                                 dayContentScrollable(for: offset)
                                 
-                                // Рекламные баннеры внизу каждого дня
-                                bannerSection
+                                // Рекламные баннеры внизу каждого дня (временно скрыто)
+                                // bannerSection
                             }
                             .padding(.horizontal, 16)
                             .padding(.bottom, 24)
@@ -197,11 +204,21 @@ struct TodayView: View {
     
     private var scheduleHeader: some View {
         let daySchedule = getScheduleForOffset(selectedDayOffset)
+        let isScheduleLoaded = !viewModel.weekSchedules.isEmpty // Проверяем, загружено ли расписание
         
         return HStack {
+            HStack(spacing: 8) {
             Text("Расписание")
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(.white)
+                
+                // Индикатор загрузки, если идет обновление с сервера
+                if viewModel.isLoading && isScheduleLoaded {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.6)))
+                        .scaleEffect(0.7)
+                }
+            }
             
             Spacer()
             
@@ -219,33 +236,32 @@ struct TodayView: View {
     private func dayContentScrollable(for offset: Int) -> some View {
         let daySchedule = getScheduleForOffset(offset)
         let dayReplacements = getReplacementsForOffset(offset)
+        let isScheduleLoaded = !viewModel.weekSchedules.isEmpty // Проверяем, загружено ли расписание
         
         VStack(spacing: 16) {
             // Пары
-            if daySchedule.isDayOff || daySchedule.lessons.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "sun.max.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.yellow.opacity(0.6))
+            if !isScheduleLoaded {
+                // Расписание еще не загружено - показываем индикатор загрузки
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.2)
                     
-                    Text(daySchedule.isDayOff ? "Выходной" : "Пар нет")
-                        .font(.title3.weight(.medium))
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    Text("Отдыхайте!")
+                    Text("Загрузка расписания...")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(.white.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial.opacity(0.3))
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.white.opacity(0.03))
-                        )
-                )
+                .padding(.vertical, 60)
+            } else if daySchedule.isDayOff || daySchedule.lessons.isEmpty {
+                // Расписание загружено, но пар нет (выходной или действительно нет пар)
+                // Используем тот же компонент, что и для воскресенья
+                SundayCard(date: daySchedule.date)
+                
+                // Рекомендация (показываем только если не премиум) - временно скрыто
+                // if !appSettings.isPremium, let recommendationBanner = banners.first {
+                //     EmptyDayRecommendationCard(banner: recommendationBanner)
+                // }
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(daySchedule.lessons.enumerated()), id: \.element.id) { index, lesson in
@@ -393,6 +409,7 @@ struct TodayView: View {
         // Цвет привязан к текущей неделе (автоматически)
         let isNumerator = currentWeekType == .numerator
         let colors: [Color] = isNumerator ? appSettings.numeratorGradient : appSettings.denominatorGradient
+        let customImage = isNumerator ? appSettings.numeratorCustomImage : appSettings.denominatorCustomImage
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
@@ -403,6 +420,33 @@ struct TodayView: View {
         let displayDate = calendar.date(byAdding: .day, value: selectedDayOffset, to: Date()) ?? Date()
 
         return ZStack(alignment: .leading) {
+            // Фон - кастомное фото или градиент
+            if let customImage = customImage {
+                // Кастомное фото - строго заполняет область карточки без выхода за границы
+                GeometryReader { geometry in
+                    Image(uiImage: customImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .overlay(
+                    // Полупрозрачный оверлей для читаемости текста
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.4),
+                                    Color.black.opacity(0.6)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
+            } else {
+                // Градиент по умолчанию
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
@@ -412,6 +456,7 @@ struct TodayView: View {
                     )
                 )
                 .frame(maxWidth: .infinity)
+            }
 
             VStack(alignment: .leading, spacing: 16) {
                 Text(weekTypeText)
@@ -422,10 +467,12 @@ struct TodayView: View {
                         Capsule()
                             .fill(Color.white.opacity(0.18))
                     )
+                    .foregroundColor(.white)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayName(for: selectedDayOffset))
                         .font(appSettings.scaledFont(.title).weight(.bold))
+                        .foregroundColor(.white)
                     Text(formatter.string(from: displayDate).capitalized)
                         .font(appSettings.scaledFont(.subheadline))
                         .foregroundColor(.white.opacity(0.85))
@@ -433,21 +480,24 @@ struct TodayView: View {
             }
             .padding(20)
         }
-        .frame(height: 160)
+        .frame(height: customImage != nil ? 185 : 160) // Увеличиваем высоту когда есть фото, чтобы не перекрывать кнопки
         .animation(.easeInOut(duration: 0.2), value: selectedDayOffset)
+        .animation(.easeInOut(duration: 0.2), value: customImage != nil)
     }
     
     // MARK: - Banner Section (Рекламные баннеры)
     
     private var bannerSection: some View {
         VStack(spacing: 0) {
-            if !banners.isEmpty {
+            // Баннеры временно скрыты
+            if false && !banners.isEmpty {
                 // Ненавязчивый заголовок (опционально, можно убрать)
                 HStack {
                     Spacer()
                 }
                 .frame(height: 0)
                 
+                VStack(spacing: 0) {
                 TabView(selection: $currentBannerIndex) {
                     ForEach(0..<banners.count, id: \.self) { index in
                         BannerCard(banner: banners[index])
@@ -456,13 +506,7 @@ struct TodayView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 130)
-                .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
-                    guard banners.count > 1 else { return }
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        currentBannerIndex = (currentBannerIndex + 1) % banners.count
-                    }
-                }
+                    .frame(height: calculateBannerSectionHeight())
                 
                 // Минималистичные индикаторы страниц
                 if banners.count > 1 {
@@ -475,10 +519,58 @@ struct TodayView: View {
                         }
                     }
                     .padding(.top, 10)
+                    }
+                }
+                .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
+                    guard banners.count > 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        currentBannerIndex = (currentBannerIndex + 1) % banners.count
+                    }
                 }
             }
         }
         .padding(.top, 24)
+    }
+    
+    // MARK: - Banner Height Calculation
+    
+    /// Вычислить высоту баннера на основе пропорций изображения
+    private func calculateBannerHeight(for banner: NewsItem, availableWidth: CGFloat) -> CGFloat {
+        if let uiImage = loadBannerImage(named: banner.imageName) {
+            let imageAspectRatio = uiImage.size.width / uiImage.size.height
+            return availableWidth / imageAspectRatio
+        }
+        // Стандартное соотношение 16:9 для fallback
+        return availableWidth / (16/9)
+    }
+    
+    /// Вычислить максимальную высоту секции баннеров
+    private func calculateBannerSectionHeight() -> CGFloat {
+        // Используем ширину экрана минус padding (16*2 + 4*2 = 40)
+        let screenWidth = UIScreen.main.bounds.width
+        let availableWidth = screenWidth - 40
+        
+        // Находим максимальную высоту среди всех баннеров
+        let maxHeight = banners.map { banner in
+            calculateBannerHeight(for: banner, availableWidth: availableWidth)
+        }.max() ?? (availableWidth / (16/9))
+        
+        return maxHeight
+    }
+    
+    /// Загрузить изображение баннера (helper метод)
+    private func loadBannerImage(named: String) -> UIImage? {
+        if let image = UIImage(named: named) { return image }
+        if let image = UIImage(named: "\(named).jpg") { return image }
+        if let image = UIImage(named: "\(named).png") { return image }
+        if let image = UIImage(named: "news/\(named)") { return image }
+        if let image = UIImage(named: "news/\(named).jpg") { return image }
+        if let image = UIImage(named: "news/\(named).png") { return image }
+        if let path = Bundle.main.path(forResource: named, ofType: nil, inDirectory: "news"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        return nil
     }
 }
 
@@ -486,16 +578,25 @@ struct TodayView: View {
 
 private struct BannerCard: View {
     let banner: NewsItem
+    @Environment(\.openURL) private var openURL
+    @State private var isPressed = false
     
     var body: some View {
+        Button(action: {
+            if let urlString = banner.url, let url = URL(string: urlString) {
+                openURL(url)
+            }
+        }) {
         ZStack {
             // Пытаемся загрузить изображение из разных источников
             if let uiImage = loadBannerImage(named: banner.imageName) {
+                    // Вычисляем пропорции изображения для правильного отображения в полном размере
+                    let imageAspectRatio = uiImage.size.width / uiImage.size.height
+                    
                 Image(uiImage: uiImage)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: 130)
-                    .clipped()
+                        .aspectRatio(imageAspectRatio, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
             } else {
                 // Fallback если изображение не найдено
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -506,7 +607,8 @@ private struct BannerCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(height: 130)
+                        .aspectRatio(16/9, contentMode: .fit) // Стандартное соотношение для баннеров
+                        .frame(maxWidth: .infinity)
                     .overlay(
                         VStack(spacing: 6) {
                             Image(systemName: "photo")
@@ -532,6 +634,26 @@ private struct BannerCard: View {
                 )
         )
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+            .scaleEffect(isPressed ? 0.97 : 1.0)
+            .opacity(isPressed ? 0.9 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .disabled(banner.url == nil)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if banner.url != nil {
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isPressed = true
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isPressed = false
+                    }
+                }
+        )
     }
     
     private func loadBannerImage(named: String) -> UIImage? {
@@ -1045,6 +1167,12 @@ struct WeekView: View {
     @State private var selectedLessonType: LessonType = .numerator
     @State private var showingWeekSchedule: Bool = true  // true = показываем неделю, false = показываем день
     @State private var isCalendarExpanded: Bool = false  // развернут ли календарь на месяц
+    @State private var currentBannerIndex: Int = 0
+    
+    // Рекламные баннеры
+    private let banners: [NewsItem] = [
+        NewsItem(imageName: "GeekMain", title: nil, description: nil, url: "https://gb.ru")
+    ]
     
     init(group: Group, viewModel: ScheduleViewModel, homeworks: Binding<[UUID: Homework]>, onHomeworksChanged: (() -> Void)? = nil) {
         self.group = group
@@ -1083,7 +1211,7 @@ struct WeekView: View {
             ZStack {
                 Color.black.ignoresSafeArea()
 
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 24) {
                         // Календарь
                         CalendarWeekView(
@@ -1111,6 +1239,7 @@ struct WeekView: View {
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
+                        .frame(maxWidth: .infinity)
                         
                         if showingWeekSchedule {
                             // Расписание всей недели
@@ -1129,6 +1258,22 @@ struct WeekView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 20)
                                 
+                                // Проверяем, загружено ли расписание
+                                if viewModel.weekSchedules.isEmpty {
+                                    // Расписание еще не загружено
+                                    VStack(spacing: 16) {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(1.2)
+                                        
+                                        Text("Загрузка расписания...")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 60)
+                                    .padding(.horizontal, 20)
+                                } else {
                                 ForEach(Array(weekSchedules.enumerated()), id: \.element.id) { index, daySchedule in
                                     let calendar = Calendar.current
                                     let weekday = calendar.component(.weekday, from: daySchedule.date)
@@ -1174,6 +1319,7 @@ struct WeekView: View {
                                         }
                                         .padding(.horizontal, 40)
                                         .padding(.vertical, 20)
+                                    }
                                     }
                                 }
                             }
@@ -1232,21 +1378,33 @@ struct WeekView: View {
                                     }
                                     .padding(.horizontal, 16)
                                     
-                                    if selectedDaySchedule.lessons.isEmpty {
-                                        Text("На этот день пар нет")
+                                    // Проверяем, загружено ли расписание
+                                    let isScheduleLoaded = !viewModel.weekSchedules.isEmpty
+                                    
+                                    if !isScheduleLoaded {
+                                        // Расписание еще не загружено - показываем индикатор загрузки
+                                        VStack(spacing: 16) {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                .scaleEffect(1.2)
+                                            
+                                            Text("Загрузка расписания...")
                                             .font(.subheadline)
-                                            .foregroundColor(.white.opacity(0.5))
+                                                .foregroundColor(.white.opacity(0.6))
+                                        }
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 24)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                    .fill(.ultraThinMaterial.opacity(0.3))
-                                                    .background(
-                                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                            .fill(Color.white.opacity(0.03))
-                                                    )
-                                            )
+                                        .padding(.vertical, 60)
                                             .padding(.horizontal, 12)
+                                    } else if selectedDaySchedule.lessons.isEmpty {
+                                        // Расписание загружено, но пар нет
+                                        // Используем тот же компонент, что и для воскресенья
+                                        SundayCard(date: selectedDate)
+                                            .padding(.horizontal, 12)
+                                        
+                                        // Рекомендация (показываем только если не премиум) - временно скрыто
+                                        // if !appSettings.isPremium, let recommendationBanner = banners.first {
+                                        //     EmptyDayRecommendationCard(banner: recommendationBanner)
+                                        // }
                                     } else {
                                         VStack(spacing: 0) {
                                             ForEach(Array(selectedDaySchedule.lessons.enumerated()), id: \.element.id) { index, lesson in
@@ -1312,7 +1470,15 @@ struct WeekView: View {
                                 }
                             }
                         }
+                        
+                        // Баннер в самом низу ScrollView (если не премиум) - временно скрыто
+                        // if !appSettings.isPremium && !banners.isEmpty {
+                        //     weekBannerSection
+                        //         .padding(.top, 24)
+                        //         .padding(.horizontal, 20)
+                        // }
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.bottom, 32)
                 }
             }
@@ -1334,6 +1500,23 @@ struct WeekView: View {
                 onSave: { hw in
                     homeworks[lessonId] = hw
                     onHomeworksChanged?()
+                },
+                onDayNoteCreated: { date, homeworkText in
+                    // Автоматически создаем или обновляем заметку в календаре на дату сдачи ДЗ
+                    let calendar = Calendar.current
+                    let dateOnly = calendar.startOfDay(for: date)
+                    
+                    if let existingNote = dayNotes[dateOnly] {
+                        // Если заметка уже существует, добавляем информацию о ДЗ
+                        let noteText = existingNote.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let updatedText = !noteText.isEmpty ? "\(noteText)\n\n\(homeworkText)" : homeworkText
+                        let updatedNote = DayNote(date: dateOnly, text: updatedText)
+                        dayNotes[dateOnly] = updatedNote
+                    } else {
+                        // Создаем новую заметку
+                        let newNote = DayNote(date: dateOnly, text: homeworkText)
+                        dayNotes[dateOnly] = newNote
+                    }
                 }
             )
         }
@@ -1344,6 +1527,86 @@ struct WeekView: View {
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.dateFormat = "EEEE, d MMMM"
         return formatter.string(from: selectedDate).capitalized
+    }
+    
+    // MARK: - Week Banner Section
+    
+    private var weekBannerSection: some View {
+        VStack(spacing: 0) {
+            if !banners.isEmpty {
+                VStack(spacing: 0) {
+                    TabView(selection: $currentBannerIndex) {
+                        ForEach(0..<banners.count, id: \.self) { index in
+                            BannerCard(banner: banners[index])
+                                .tag(index)
+                                .padding(.horizontal, 4)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: calculateWeekBannerHeight())
+                    
+                    // Индикаторы страниц
+                    if banners.count > 1 {
+                        HStack(spacing: 5) {
+                            ForEach(0..<banners.count, id: \.self) { index in
+                                Capsule()
+                                    .fill(index == currentBannerIndex ? Color.white.opacity(0.5) : Color.white.opacity(0.15))
+                                    .frame(width: index == currentBannerIndex ? 20 : 6, height: 4)
+                                    .animation(.spring(response: 0.3), value: currentBannerIndex)
+                            }
+                        }
+                        .padding(.top, 10)
+                    }
+                }
+                .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
+                    guard banners.count > 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        currentBannerIndex = (currentBannerIndex + 1) % banners.count
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Week Banner Height Calculation
+    
+    /// Вычислить высоту баннера на основе пропорций изображения
+    private func calculateBannerHeight(for banner: NewsItem, availableWidth: CGFloat) -> CGFloat {
+        if let uiImage = loadWeekBannerImage(named: banner.imageName) {
+            let imageAspectRatio = uiImage.size.width / uiImage.size.height
+            return availableWidth / imageAspectRatio
+        }
+        // Стандартное соотношение 16:9 для fallback
+        return availableWidth / (16/9)
+    }
+    
+    /// Вычислить максимальную высоту секции баннеров для WeekView
+    private func calculateWeekBannerHeight() -> CGFloat {
+        // Используем ширину экрана минус padding (20*2 + 4*2 = 48)
+        let screenWidth = UIScreen.main.bounds.width
+        let availableWidth = screenWidth - 48
+        
+        // Находим максимальную высоту среди всех баннеров
+        let maxHeight = banners.map { banner in
+            calculateBannerHeight(for: banner, availableWidth: availableWidth)
+        }.max() ?? (availableWidth / (16/9))
+        
+        return maxHeight
+    }
+    
+    /// Загрузить изображение баннера для WeekView
+    private func loadWeekBannerImage(named: String) -> UIImage? {
+        if let image = UIImage(named: named) { return image }
+        if let image = UIImage(named: "\(named).jpg") { return image }
+        if let image = UIImage(named: "\(named).png") { return image }
+        if let image = UIImage(named: "news/\(named)") { return image }
+        if let image = UIImage(named: "news/\(named).jpg") { return image }
+        if let image = UIImage(named: "news/\(named).png") { return image }
+        if let path = Bundle.main.path(forResource: named, ofType: nil, inDirectory: "news"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        return nil
     }
 }
 
@@ -1884,6 +2147,14 @@ private struct WeekDaySection: View {
 }
 
 struct BellsView: View {
+    @ObservedObject var appSettings = AppSettingsService.shared
+    @State private var currentBannerIndex: Int = 0
+    
+    // Рекламные баннеры (компактные для экрана звонков)
+    private let banners: [NewsItem] = [
+        NewsItem(imageName: "GeekMain", title: nil, description: nil, url: "https://gb.ru")
+    ]
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -1904,6 +2175,12 @@ struct BellsView: View {
                                 BellRow(pair: item.pair, time: item.time, breakDescription: item.breakDescription)
                             }
                         }
+                        
+                        // Компактный баннер внизу (если не премиум) - временно скрыто
+                        // if !appSettings.isPremium && !banners.isEmpty {
+                        //     bellsBannerSection
+                        //         .padding(.top, 8)
+                        // }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -1913,7 +2190,43 @@ struct BellsView: View {
             .navigationTitle("Звонки")
             .navigationBarTitleDisplayMode(.large)
         }
-        .preferredColorScheme(.dark)
+    }
+    
+    // MARK: - Bells Banner Section
+    
+    private var bellsBannerSection: some View {
+        VStack(spacing: 0) {
+            if !banners.isEmpty {
+                TabView(selection: $currentBannerIndex) {
+                    ForEach(0..<banners.count, id: \.self) { index in
+                        BannerCard(banner: banners[index])
+                            .tag(index)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 140)
+                .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
+                    guard banners.count > 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        currentBannerIndex = (currentBannerIndex + 1) % banners.count
+                    }
+                }
+                
+                // Индикаторы страниц
+                if banners.count > 1 {
+                    HStack(spacing: 5) {
+                        ForEach(0..<banners.count, id: \.self) { index in
+                            Capsule()
+                                .fill(index == currentBannerIndex ? Color.white.opacity(0.5) : Color.white.opacity(0.15))
+                                .frame(width: index == currentBannerIndex ? 20 : 6, height: 4)
+                                .animation(.spring(response: 0.3), value: currentBannerIndex)
+                        }
+                    }
+                    .padding(.top, 10)
+                }
+            }
+        }
     }
 }
 
@@ -1977,7 +2290,7 @@ struct SettingsView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        header
+                        // Убираем header чтобы не было дублирования "Настройки"
 
                         GroupBoxView(
                             title: "Учебная группа",
@@ -2075,6 +2388,7 @@ struct SettingsView: View {
                                                 }
                                             }
                                         }
+                                        
                                     }
                                     
                                     Divider()
@@ -2138,6 +2452,125 @@ struct SettingsView: View {
                                                     .foregroundColor(.white)
                                             )
                                     }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        )
+                        
+                        // MARK: - Кастомные фотографии
+                        GroupBoxView(
+                            title: "Кастомные фотографии",
+                            content: {
+                                VStack(spacing: 16) {
+                                    // Числитель
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Для числителя")
+                                            .font(.subheadline.weight(.medium))
+                                            .foregroundColor(.white)
+                                        
+                                        HStack(spacing: 16) {
+                                            CustomImagePreview(
+                                                image: appSettings.numeratorCustomImage,
+                                                onRemove: {
+                                                    appSettings.removeCustomImage(for: .numerator)
+                                                }
+                                            )
+                                            
+                                            VStack(spacing: 8) {
+                                                ImagePickerView(
+                                                    selectedImage: Binding(
+                                                        get: { appSettings.numeratorCustomImage },
+                                                        set: { appSettings.numeratorCustomImage = $0 }
+                                                    ),
+                                                    title: "Выбрать фото"
+                                                )
+                                                
+                                                if appSettings.numeratorCustomImage != nil {
+                                                    Button(action: {
+                                                        appSettings.removeCustomImage(for: .numerator)
+                                                    }) {
+                                                        HStack(spacing: 6) {
+                                                            Image(systemName: "trash")
+                                                                .font(.caption)
+                                                            Text("Удалить")
+                                                                .font(.caption.weight(.medium))
+                                                        }
+                                                        .foregroundColor(.red.opacity(0.9))
+                                                        .padding(.horizontal, 12)
+                                                        .padding(.vertical, 6)
+                                                        .background(
+                                                            Capsule()
+                                                                .fill(Color.red.opacity(0.15))
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                        }
+                                    }
+                                    
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                    
+                                    // Знаменатель
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Для знаменателя")
+                                            .font(.subheadline.weight(.medium))
+                                            .foregroundColor(.white)
+                                        
+                                        HStack(spacing: 16) {
+                                            CustomImagePreview(
+                                                image: appSettings.denominatorCustomImage,
+                                                onRemove: {
+                                                    appSettings.removeCustomImage(for: .denominator)
+                                                }
+                                            )
+                                            
+                                            VStack(spacing: 8) {
+                                                ImagePickerView(
+                                                    selectedImage: Binding(
+                                                        get: { appSettings.denominatorCustomImage },
+                                                        set: { appSettings.denominatorCustomImage = $0 }
+                                                    ),
+                                                    title: "Выбрать фото"
+                                                )
+                                                
+                                                if appSettings.denominatorCustomImage != nil {
+                                                    Button(action: {
+                                                        appSettings.removeCustomImage(for: .denominator)
+                                                    }) {
+                                                        HStack(spacing: 6) {
+                                                            Image(systemName: "trash")
+                                                                .font(.caption)
+                                                            Text("Удалить")
+                                                                .font(.caption.weight(.medium))
+                                                        }
+                                                        .foregroundColor(.red.opacity(0.9))
+                                                        .padding(.horizontal, 12)
+                                                        .padding(.vertical, 6)
+                                                        .background(
+                                                            Capsule()
+                                                                .fill(Color.red.opacity(0.15))
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                        }
+                                    }
+                                    
+                                    // Подсказка
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "info.circle.fill")
+                                            .font(.caption2)
+                                            .foregroundColor(.white.opacity(0.6))
+                                        Text("Фото отображаются на экране \"Сегодня\" вместо цветов")
+                                            .font(.caption2)
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                    
                                 }
                                 .padding(.vertical, 8)
                             }
@@ -2252,6 +2685,7 @@ struct SettingsView: View {
                             }
                         )
                         
+                        
                         // Показываем ошибку если есть
                         if let error = viewModel.errorMessage {
                             Text(error)
@@ -2278,8 +2712,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.large)
-        }
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showingSpecialtyPicker) {
             SpecialtyPickerSheet(
                 viewModel: viewModel,
@@ -2314,16 +2746,6 @@ struct SettingsView: View {
                 await viewModel.loadSpecialties()
             }
         }
-    }
-    
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Настройки")
-                .font(.title2.weight(.bold))
-                .foregroundColor(.white)
-            Text("Персонализируйте расписание и связь с техникумом")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.7))
         }
     }
     
@@ -2338,10 +2760,10 @@ struct SettingsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation {
                 showToast = false
-            }
         }
     }
 }
+    
 
 // MARK: - Toast View (Уведомление сверху)
 
@@ -2600,5 +3022,208 @@ private struct ColorPresetButton: View {
     }
 }
 
-
-
+    // MARK: - Empty Day Recommendation Card
+    
+    // MARK: - Empty Schedule Card
+    
+    private struct EmptyScheduleCard: View {
+        let isWeekend: Bool
+        @State private var animateGlow = false
+        
+        init(isWeekend: Bool = false) {
+            self.isWeekend = isWeekend
+        }
+        
+        var body: some View {
+            VStack(spacing: 20) {
+                ZStack {
+                    // Фоновое свечение
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.purple.opacity(0.2),
+                                    Color.blue.opacity(0.1),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 10,
+                                endRadius: 50
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                        .blur(radius: 20)
+                        .opacity(animateGlow ? 0.8 : 0.5)
+                        .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateGlow)
+                    
+                    // Иконка
+                    Image(systemName: isWeekend ? "moon.stars.fill" : "sparkles")
+                        .font(.system(size: 36, weight: .medium))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    Color.purple.opacity(0.8),
+                                    Color.blue.opacity(0.8)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                
+                VStack(spacing: 8) {
+                    Text(isWeekend ? "Выходной" : "Пар нет")
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.white)
+                    
+                    Text(isWeekend ? "Отличный день для отдыха" : "Отличный день для отдыха")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 40)
+            .padding(.horizontal, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.ultraThinMaterial.opacity(0.4))
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.05),
+                                        Color.white.opacity(0.02)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.15),
+                                        Color.white.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .onAppear {
+                animateGlow = true
+            }
+        }
+    }
+    
+    private struct EmptyDayRecommendationCard: View {
+        let banner: NewsItem
+        @Environment(\.openURL) private var openURL
+        @State private var isPressed = false
+        
+        var body: some View {
+            Button(action: {
+                if let urlString = banner.url, let url = URL(string: urlString) {
+                    openURL(url)
+                }
+            }) {
+                HStack(spacing: 12) {
+                    // Иконка или изображение
+                    if let uiImage = loadBannerImage(named: banner.imageName) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    } else {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Image(systemName: "book.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.white.opacity(0.7))
+                            )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Пока нет пар, посмотри полезные курсы")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        if let title = banner.title {
+                            Text(title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.white)
+                        } else {
+                            Text("Онлайн-образование")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "arrow.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                )
+                .scaleEffect(isPressed ? 0.98 : 1.0)
+                .opacity(isPressed ? 0.9 : 1.0)
+            }
+            .buttonStyle(.plain)
+            .disabled(banner.url == nil)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if banner.url != nil {
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                isPressed = true
+                            }
+                        }
+                    }
+                    .onEnded { _ in
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isPressed = false
+                        }
+                    }
+            )
+        }
+        
+        private func loadBannerImage(named: String) -> UIImage? {
+            if let image = UIImage(named: named) { return image }
+            if let image = UIImage(named: "\(named).jpg") { return image }
+            if let image = UIImage(named: "\(named).png") { return image }
+            if let image = UIImage(named: "news/\(named)") { return image }
+            if let image = UIImage(named: "news/\(named).jpg") { return image }
+            if let image = UIImage(named: "news/\(named).png") { return image }
+            if let path = Bundle.main.path(forResource: named, ofType: nil, inDirectory: "news"),
+               let image = UIImage(contentsOfFile: path) {
+                return image
+            }
+            return nil
+        }
+    }
+    
+    
+}

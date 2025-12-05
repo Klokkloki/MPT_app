@@ -58,10 +58,14 @@ struct OnboardingFlowView: View {
                         storedGroupId = group.id
                         storedGroupName = group.name
                         
-                        // Сразу загружаем расписание для выбранной группы (чтобы было в кеше)
+                        // Загружаем расписание
                         Task {
+                            // Загружаем расписание - оно автоматически сохранится в кеш
                             await viewModel.loadSchedule(for: group)
-                            await viewModel.loadReplacements(for: group)
+                            // Замены не критичны для первого запуска, загружаем в фоне
+                            Task.detached(priority: .background) {
+                                await viewModel.loadReplacements(for: group)
+                            }
                         }
                     },
                     onBack: {
@@ -81,32 +85,29 @@ struct OnboardingFlowView: View {
 private struct WelcomeScreen: View {
     var onContinue: () -> Void
     
-    @State private var animateGradient = false
+    @State private var animateColor = 0.0
     @State private var animateLogo = false
     @State private var animateText = false
     @State private var animateButton = false
 
     var body: some View {
         ZStack {
-            // Анимированный градиентный фон
-            LinearGradient(
-                colors: [
-                    Color(red: 0.1, green: 0.1, blue: 0.2),
-                    Color.black,
-                    Color(red: 0.05, green: 0.1, blue: 0.15)
-                ],
-                startPoint: animateGradient ? .topLeading : .bottomTrailing,
-                endPoint: animateGradient ? .bottomTrailing : .topLeading
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 5).repeatForever(autoreverses: true), value: animateGradient)
+            // Статичный черный фон
+            Color.black
+                .ignoresSafeArea()
             
-            // Декоративные круги на фоне
+            // Декоративные круги на фоне с плавной сменой цвета
             GeometryReader { geo in
+                // Левый верхний угол - плавно переливается от синего к фиолетовому
+                let circle1Color = interpolateColor(from: UIColor.blue, to: UIColor.systemPurple, progress: animateColor)
+                
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [Color.blue.opacity(0.15), Color.clear],
+                            colors: [
+                                Color(circle1Color).opacity(0.2),
+                                Color.clear
+                            ],
                             center: .center,
                             startRadius: 0,
                             endRadius: 200
@@ -116,10 +117,16 @@ private struct WelcomeScreen: View {
                     .offset(x: -100, y: -50)
                     .blur(radius: 60)
                 
+                // Правый нижний угол - плавно переливается от фиолетового к синему
+                let circle2Color = interpolateColor(from: UIColor.systemPurple, to: UIColor.blue, progress: animateColor)
+                
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [Color.purple.opacity(0.1), Color.clear],
+                            colors: [
+                                Color(circle2Color).opacity(0.15),
+                                Color.clear
+                            ],
                             center: .center,
                             startRadius: 0,
                             endRadius: 150
@@ -197,8 +204,8 @@ private struct WelcomeScreen: View {
                         .opacity(animateText ? 1 : 0)
                         .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: animateText)
 
-                    Text("Мой МПТ")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                    Text("МПТ им. Плеханова")
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [.white, .white.opacity(0.8)],
@@ -222,6 +229,9 @@ private struct WelcomeScreen: View {
                         .foregroundColor(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(nil)
+                        .minimumScaleFactor(0.8)
                 }
                 .padding(.horizontal, 40)
                 .offset(y: animateText ? 0 : 20)
@@ -263,10 +273,14 @@ private struct WelcomeScreen: View {
             }
         }
         .onAppear {
-            animateGradient = true
             animateLogo = true
             animateText = true
             animateButton = true
+            
+            // Плавная анимация изменения цвета кругов от синего к фиолетовому и обратно
+            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
+                animateColor = 1.0
+            }
         }
     }
 }
@@ -750,4 +764,31 @@ private struct SelectGroupScreen: View {
             }
         }
     }
+}
+
+// MARK: - Helper Functions
+
+/// Интерполирует цвет между двумя цветами на основе прогресса (0.0 - 1.0)
+private func interpolateColor(from: UIColor, to: UIColor, progress: Double) -> UIColor {
+    var fromRed: CGFloat = 0
+    var fromGreen: CGFloat = 0
+    var fromBlue: CGFloat = 0
+    var fromAlpha: CGFloat = 0
+    
+    var toRed: CGFloat = 0
+    var toGreen: CGFloat = 0
+    var toBlue: CGFloat = 0
+    var toAlpha: CGFloat = 0
+    
+    from.getRed(&fromRed, green: &fromGreen, blue: &fromBlue, alpha: &fromAlpha)
+    to.getRed(&toRed, green: &toGreen, blue: &toBlue, alpha: &toAlpha)
+    
+    let clampedProgress = max(0.0, min(1.0, progress))
+    
+    let red = fromRed + (toRed - fromRed) * CGFloat(clampedProgress)
+    let green = fromGreen + (toGreen - fromGreen) * CGFloat(clampedProgress)
+    let blue = fromBlue + (toBlue - fromBlue) * CGFloat(clampedProgress)
+    let alpha = fromAlpha + (toAlpha - fromAlpha) * CGFloat(clampedProgress)
+    
+    return UIColor(red: red, green: green, blue: blue, alpha: alpha)
 }

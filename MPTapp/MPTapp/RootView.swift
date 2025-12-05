@@ -44,7 +44,53 @@ struct MainTabView: View {
         _selectedSpecialty = State(initialValue: selectedSpecialty)
         _selectedGroup = State(initialValue: selectedGroup)
         self.onChangeGroup = onChangeGroup
-        _todaySchedule = State(initialValue: MockData.todaySchedule(for: selectedGroup, date: Date()))
+        
+        // Загружаем сохраненное расписание из кеша сразу при запуске
+        // Это важно для быстрого отображения без ожидания сервера
+        let cachedSchedules = StorageService.shared.loadSchedule(for: selectedGroup.id) ?? []
+        let cachedWeekInfo = StorageService.shared.loadWeekInfo()
+        
+        // Пытаемся найти расписание на сегодня
+        let today = Date()
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: today)
+        let dayIndex = weekday == 1 ? nil : (weekday + 5) % 7 // пн=0, вт=1, ..., сб=5
+        
+        let initialSchedule: DaySchedule
+        if let dayIdx = dayIndex,
+           let templateSchedule = cachedSchedules.first(where: { schedule in
+               let templateWeekday = calendar.component(.weekday, from: schedule.date)
+               let templateDayIndex = (templateWeekday + 5) % 7
+               return templateDayIndex == dayIdx
+           }) {
+            // Есть сохраненное расписание для сегодня
+            initialSchedule = DaySchedule(
+                date: today,
+                lessons: templateSchedule.lessons.map { lesson in
+                    Lesson(
+                        number: lesson.number,
+                        title: lesson.title,
+                        teacher: lesson.teacher,
+                        location: lesson.location,
+                        campus: lesson.campus,
+                        startTime: lesson.startTime,
+                        endTime: lesson.endTime,
+                        isReplacement: lesson.isReplacement,
+                        originalTitle: lesson.originalTitle,
+                        date: today,
+                        titleDenominator: lesson.titleDenominator,
+                        teacherDenominator: lesson.teacherDenominator
+                    )
+                },
+                replacements: [],
+                isDayOff: templateSchedule.isDayOff
+            )
+        } else {
+            // Нет сохраненного расписания - используем пустое
+            initialSchedule = DaySchedule(date: today, lessons: [], replacements: [], isDayOff: weekday == 1)
+        }
+        
+        _todaySchedule = State(initialValue: initialSchedule)
         // Загружаем ДЗ из кеша
         _homeworks = State(initialValue: StorageService.shared.loadHomeworks())
     }
@@ -80,12 +126,6 @@ struct MainTabView: View {
                     Text("Неделя")
                 }
 
-            NewsView()
-                .tabItem {
-                    Image(systemName: "newspaper.fill")
-                    Text("Новости")
-                }
-
             BellsView()
                 .tabItem {
                     Image(systemName: "bell")
@@ -118,13 +158,36 @@ struct MainTabView: View {
         .tint(.white)
         .preferredColorScheme(.dark)
         .task {
-            await viewModel.loadWeekInfo()
-            await viewModel.loadSchedule(for: selectedGroup)
-            await viewModel.loadReplacements(for: selectedGroup)
+            // Сначала загружаем из кеша (мгновенно) - это уже должно быть загружено в viewModel.loadSchedule
+            // но на всякий случай убеждаемся что данные из кеша используются
+            if let cachedWeekInfo = StorageService.shared.loadWeekInfo() {
+                viewModel.weekInfo = cachedWeekInfo
+            }
+            if let cachedSchedules = StorageService.shared.loadSchedule(for: selectedGroup.id) {
+                viewModel.weekSchedules = cachedSchedules
+                // Обновляем todaySchedule из кеша сразу
+                todaySchedule = viewModel.getTodaySchedule(for: selectedGroup)
+            }
+            
+            // Теперь обновляем с сервера в фоне (если сервер доступен)
+            // Это делаем асинхронно, не блокируя отображение
+            Task {
+                // Загружаем актуальные данные с сервера
+                await viewModel.loadWeekInfo()
+                await viewModel.loadSchedule(for: selectedGroup)
+                // Обновляем отображаемое расписание после загрузки
+                await MainActor.run {
+                    todaySchedule = viewModel.getTodaySchedule(for: selectedGroup)
+                }
+            }
+            
+            // Замены загружаем отдельно (они менее критичны)
+            Task {
+                await viewModel.loadReplacements(for: selectedGroup)
+            }
+            
             // Извлекаем преподавателей и создаём рейтинги
             viewModel.extractAndCreateTeacherRatings()
-            // Обновляем todaySchedule из загруженных данных
-            todaySchedule = viewModel.getTodaySchedule(for: selectedGroup)
         }
     }
 }

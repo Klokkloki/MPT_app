@@ -8,6 +8,7 @@ struct HomeworkEditorView: View {
     let existing: Homework?
 
     var onSave: (Homework) -> Void
+    var onDayNoteCreated: ((Date, String) -> Void)? = nil  // Callback для создания заметки в календаре
 
     @Environment(\.dismiss) private var dismiss
 
@@ -17,23 +18,24 @@ struct HomeworkEditorView: View {
     @State private var shouldRemind: Bool = false
 
     // Основной инициализатор с отдельным lessonTitle, lessonTeacher и lessonId
-    init(lesson: Lesson, lessonTitle: String, lessonTeacher: String, lessonId: UUID, existing: Homework?, onSave: @escaping (Homework) -> Void) {
+    init(lesson: Lesson, lessonTitle: String, lessonTeacher: String, lessonId: UUID, existing: Homework?, onSave: @escaping (Homework) -> Void, onDayNoteCreated: ((Date, String) -> Void)? = nil) {
         self.lesson = lesson
         self.lessonTitle = lessonTitle
         self.lessonTeacher = lessonTeacher
         self.lessonId = lessonId
         self.existing = existing
         self.onSave = onSave
+        self.onDayNoteCreated = onDayNoteCreated
 
         _title = State(initialValue: existing?.title ?? "")
         _notes = State(initialValue: existing?.notes ?? "")
         _dueDate = State(initialValue: existing?.dueDate ?? Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date())
         _shouldRemind = State(initialValue: existing?.shouldRemind ?? false)
     }
-    
+
     // Удобный инициализатор для обычных пар
-    init(lesson: Lesson, existing: Homework?, onSave: @escaping (Homework) -> Void) {
-        self.init(lesson: lesson, lessonTitle: lesson.title, lessonTeacher: lesson.teacher, lessonId: lesson.id, existing: existing, onSave: onSave)
+    init(lesson: Lesson, existing: Homework?, onSave: @escaping (Homework) -> Void, onDayNoteCreated: ((Date, String) -> Void)? = nil) {
+        self.init(lesson: lesson, lessonTitle: lesson.title, lessonTeacher: lesson.teacher, lessonId: lesson.id, existing: existing, onSave: onSave, onDayNoteCreated: onDayNoteCreated)
     }
 
     var body: some View {
@@ -79,6 +81,20 @@ struct HomeworkEditorView: View {
                             isCompleted: existing?.isCompleted ?? false
                         )
                         onSave(hw)
+
+                        // Автоматически создаем заметку в календаре на дату сдачи
+                        let calendar = Calendar.current
+                        let dueDateOnly = calendar.startOfDay(for: dueDate)
+
+                        // Форматируем дату и время для заметки
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.locale = Locale(identifier: "ru_RU")
+                        dateFormatter.dateFormat = "d MMMM, HH:mm"
+                        let dueDateFormatted = dateFormatter.string(from: dueDate)
+
+                        let homeworkText = "📝 \(lessonTitle): \(hw.title)\nСдать до: \(dueDateFormatted)"
+                        onDayNoteCreated?(dueDateOnly, homeworkText)
+
                         dismiss()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -90,5 +106,3 @@ struct HomeworkEditorView: View {
         .environment(\.calendar, Calendar(identifier: .gregorian))
     }
 }
-
-

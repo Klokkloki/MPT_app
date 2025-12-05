@@ -138,7 +138,8 @@ final class ContentUpdateService: ObservableObject {
                 id: UUID(uuidString: apiNews.id) ?? UUID(),
                 imageName: apiNews.imageName,
                 title: apiNews.title,
-                description: apiNews.description
+                description: apiNews.description,
+                url: apiNews.url
             )
         } ?? []
     }
@@ -195,6 +196,7 @@ final class ContentUpdateService: ObservableObject {
         let imageName: String
         let title: String?
         let description: String?
+        let url: String?
     }
     
     private struct ResourceCollectionAPI: Codable {
@@ -297,9 +299,9 @@ final class ContentUpdateService: ObservableObject {
         } else {
             // Дефолтные новости (фолбэк)
             newsItems = [
-                NewsItem(imageName: "news_0", title: "Экскурсия", description: "Студенты МПТ на экскурсии"),
-                NewsItem(imageName: "news_1", title: "Новости колледжа", description: "Следите за событиями"),
-                NewsItem(imageName: "news_4", title: "Робототехника", description: "Студенты МПТ на всероссийском турнире")
+                NewsItem(imageName: "news_0", title: "Экскурсия", description: "Студенты МПТ на экскурсии", url: nil),
+                NewsItem(imageName: "news_1", title: "Новости колледжа", description: "Следите за событиями", url: nil),
+                NewsItem(imageName: "news_4", title: "Робототехника", description: "Студенты МПТ на всероссийском турнире", url: nil)
             ]
         }
         

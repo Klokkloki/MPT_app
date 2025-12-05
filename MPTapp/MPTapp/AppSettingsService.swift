@@ -12,6 +12,8 @@ class AppSettingsService: ObservableObject {
     private let textScaleKey = "appTextScale"
     private let numeratorColorIndexKey = "numeratorColorIndex"
     private let denominatorColorIndexKey = "denominatorColorIndex"
+    private let numeratorImagePathKey = "numeratorCustomImagePath"
+    private let denominatorImagePathKey = "denominatorCustomImagePath"
     
     // MARK: - Preset Colors (индексы для сохранения)
     
@@ -52,6 +54,28 @@ class AppSettingsService: ObservableObject {
         }
     }
     
+    /// Кастомное фото для числителя
+    @Published var numeratorCustomImage: UIImage? {
+        didSet {
+            if let image = numeratorCustomImage {
+                saveCustomImage(image, for: .numerator)
+            } else {
+                deleteCustomImage(for: .numerator)
+            }
+        }
+    }
+    
+    /// Кастомное фото для знаменателя
+    @Published var denominatorCustomImage: UIImage? {
+        didSet {
+            if let image = denominatorCustomImage {
+                saveCustomImage(image, for: .denominator)
+            } else {
+                deleteCustomImage(for: .denominator)
+            }
+        }
+    }
+    
     /// Цвет числителя (по умолчанию оранжевый)
     var numeratorColor: Color {
         get {
@@ -85,16 +109,22 @@ class AppSettingsService: ObservableObject {
     // MARK: - Init
     
     private init() {
-        // Загружаем масштаб
+        // Инициализируем все stored properties
         let savedScale = defaults.double(forKey: textScaleKey)
         self.textScale = savedScale > 0 ? savedScale : 1.0
         
-        // Загружаем индексы цветов (с проверкой на -1 для первого запуска)
+        // Загружаем сохраненные цвета или используем значения по умолчанию
         let savedNumeratorIndex = defaults.object(forKey: numeratorColorIndexKey) as? Int
         let savedDenominatorIndex = defaults.object(forKey: denominatorColorIndexKey) as? Int
+        self.numeratorColorIndex = savedNumeratorIndex ?? 0  // оранжевый по умолчанию
+        self.denominatorColorIndex = savedDenominatorIndex ?? 5  // голубой по умолчанию
         
-        self.numeratorColorIndex = savedNumeratorIndex ?? 0  // 0 = оранжевый по умолчанию
-        self.denominatorColorIndex = savedDenominatorIndex ?? 5  // 5 = голубой по умолчанию
+        // Загружаем кастомные фото (если есть)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.numeratorCustomImage = self.loadCustomImage(for: .numerator)
+            self.denominatorCustomImage = self.loadCustomImage(for: .denominator)
+        }
     }
     
     // MARK: - Reset
@@ -103,6 +133,9 @@ class AppSettingsService: ObservableObject {
         textScale = 1.0
         numeratorColorIndex = 0  // оранжевый
         denominatorColorIndex = 5  // голубой
+        // При сбросе настроек также удаляем кастомные фото
+        removeCustomImage(for: .numerator)
+        removeCustomImage(for: .denominator)
     }
     
     // MARK: - Gradient Colors
@@ -159,11 +192,18 @@ class AppSettingsService: ObservableObject {
     
     func setColor(_ index: Int, for weekType: WeekType) {
         guard index >= 0 && index < Self.colorPresets.count else { return }
+
         if weekType == .numerator {
             numeratorColorIndex = index
         } else {
             denominatorColorIndex = index
         }
+    }
+    
+    /// Проверка, является ли цвет цветом по умолчанию
+    func isDefaultColor(_ index: Int, for weekType: WeekType) -> Bool {
+        let defaultIndex = weekType == .numerator ? 0 : 5
+        return index == defaultIndex
     }
     
     // MARK: - Week Type Calculation
@@ -202,5 +242,61 @@ class AppSettingsService: ObservableObject {
     /// Цвет для текущей недели
     var currentWeekColor: Color {
         currentWeekType == .numerator ? numeratorColor : denominatorColor
+    }
+    
+    // MARK: - Custom Images Management
+    
+    /// Сохранить кастомное изображение
+    private func saveCustomImage(_ image: UIImage, for weekType: WeekType) {
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        
+        let filename = weekType == .numerator ? "numerator_custom.jpg" : "denominator_custom.jpg"
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        let key = weekType == .numerator ? numeratorImagePathKey : denominatorImagePathKey
+        
+        // Сохраняем изображение
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            try? imageData.write(to: fileURL)
+            defaults.set(fileURL.path, forKey: key)
+        }
+    }
+    
+    /// Загрузить кастомное изображение
+    private func loadCustomImage(for weekType: WeekType) -> UIImage? {
+        let key = weekType == .numerator ? numeratorImagePathKey : denominatorImagePathKey
+        
+        guard let imagePath = defaults.string(forKey: key),
+              FileManager.default.fileExists(atPath: imagePath),
+              let image = UIImage(contentsOfFile: imagePath) else {
+            return nil
+        }
+        
+        return image
+    }
+    
+    /// Удалить кастомное изображение
+    private func deleteCustomImage(for weekType: WeekType) {
+        let key = weekType == .numerator ? numeratorImagePathKey : denominatorImagePathKey
+        
+        if let imagePath = defaults.string(forKey: key) {
+            try? FileManager.default.removeItem(atPath: imagePath)
+            defaults.removeObject(forKey: key)
+        }
+    }
+    
+    /// Удалить кастомное изображение (публичный метод)
+    func removeCustomImage(for weekType: WeekType) {
+        if weekType == .numerator {
+            numeratorCustomImage = nil
+        } else {
+            denominatorCustomImage = nil
+        }
+    }
+    
+    /// Получить кастомное изображение для текущего типа недели
+    var currentWeekCustomImage: UIImage? {
+        currentWeekType == .numerator ? numeratorCustomImage : denominatorCustomImage
     }
 }
